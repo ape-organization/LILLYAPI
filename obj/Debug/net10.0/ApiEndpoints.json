@@ -1,134 +1,5 @@
 [
   {
-    "ContainingType": "PharmacyAPI.Controllers.BrandsController",
-    "Method": "GetBrands",
-    "RelativePath": "api/Brands",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": [
-      {
-        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.Brand, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.BrandsController",
-    "Method": "CreateBrand",
-    "RelativePath": "api/Brands",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "NameAr",
-        "Type": "System.String",
-        "IsRequired": false
-      },
-      {
-        "Name": "NameEn",
-        "Type": "System.String",
-        "IsRequired": false
-      },
-      {
-        "Name": "Image",
-        "Type": "Microsoft.AspNetCore.Http.IFormFile",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": [
-      {
-        "Type": "PharmacyAPI.Models.Brand",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.BrandsController",
-    "Method": "GetBrand",
-    "RelativePath": "api/Brands/{id}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": [
-      {
-        "Type": "PharmacyAPI.Models.Brand",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.BrandsController",
-    "Method": "UpdateBrand",
-    "RelativePath": "api/Brands/{id}",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "NameAr",
-        "Type": "System.String",
-        "IsRequired": false
-      },
-      {
-        "Name": "NameEn",
-        "Type": "System.String",
-        "IsRequired": false
-      },
-      {
-        "Name": "Image",
-        "Type": "Microsoft.AspNetCore.Http.IFormFile",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.BrandsController",
-    "Method": "DeleteBrand",
-    "RelativePath": "api/Brands/{id}",
-    "HttpMethod": "DELETE",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
     "ContainingType": "PharmacyAPI.Controllers.CategoriesController",
     "Method": "GetCategories",
     "RelativePath": "api/Categories",
@@ -294,6 +165,115 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "PharmacyAPI.Controllers.HeelSizesController",
+    "Method": "GetHeelSizes",
+    "RelativePath": "api/HeelSizes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.HeelSizeDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.HeelSizesController",
+    "Method": "CreateHeelSize",
+    "RelativePath": "api/HeelSizes",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "PharmacyAPI.Models.RequestsModels.HeelSizeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "PharmacyAPI.Models.RequestsModels.HeelSizeDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.HeelSizesController",
+    "Method": "GetHeelSize",
+    "RelativePath": "api/HeelSizes/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "PharmacyAPI.Models.RequestsModels.HeelSizeDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.HeelSizesController",
+    "Method": "UpdateHeelSize",
+    "RelativePath": "api/HeelSizes/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "PharmacyAPI.Models.RequestsModels.HeelSizeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.HeelSizesController",
+    "Method": "DeleteHeelSize",
+    "RelativePath": "api/HeelSizes/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "PharmacyAPI.Controllers.OrdersController",
     "Method": "CreateOrder",
     "RelativePath": "api/Orders",
@@ -447,16 +427,6 @@
         "IsRequired": false
       },
       {
-        "Name": "subCategoryId",
-        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
-        "IsRequired": false
-      },
-      {
-        "Name": "brandId",
-        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
-        "IsRequired": false
-      },
-      {
         "Name": "offers",
         "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
@@ -528,28 +498,23 @@
         "IsRequired": false
       },
       {
-        "Name": "ImageUrl",
-        "Type": "System.String",
-        "IsRequired": false
-      },
-      {
-        "Name": "Image",
-        "Type": "Microsoft.AspNetCore.Http.IFormFile",
-        "IsRequired": false
-      },
-      {
         "Name": "DiscountPercentage",
         "Type": "System.Decimal",
         "IsRequired": false
       },
       {
-        "Name": "BrandId",
+        "Name": "CategoryId",
         "Type": "System.Int32",
         "IsRequired": false
       },
       {
-        "Name": "SubCategoryIds",
-        "Type": "System.Collections.Generic.List\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "Name": "Images",
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.ProductImageDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "Variants",
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.ProductVariantDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "IsRequired": false
       }
     ],
@@ -630,18 +595,18 @@
         "IsRequired": false
       },
       {
-        "Name": "Image",
-        "Type": "Microsoft.AspNetCore.Http.IFormFile",
-        "IsRequired": false
-      },
-      {
-        "Name": "BrandId",
+        "Name": "CategoryId",
         "Type": "System.Int32",
         "IsRequired": false
       },
       {
-        "Name": "SubCategoryIds",
-        "Type": "System.Collections.Generic.List\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "Name": "Images",
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.ProductImageDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "Variants",
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.ProductVariantDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "IsRequired": false
       }
     ],
@@ -810,6 +775,115 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "PharmacyAPI.Controllers.SizesController",
+    "Method": "GetSizes",
+    "RelativePath": "api/Sizes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[PharmacyAPI.Models.RequestsModels.SizeDto, PharmacyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.SizesController",
+    "Method": "CreateSize",
+    "RelativePath": "api/Sizes",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "PharmacyAPI.Models.RequestsModels.SizeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "PharmacyAPI.Models.RequestsModels.SizeDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.SizesController",
+    "Method": "GetSize",
+    "RelativePath": "api/Sizes/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "PharmacyAPI.Models.RequestsModels.SizeDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.SizesController",
+    "Method": "UpdateSize",
+    "RelativePath": "api/Sizes/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "PharmacyAPI.Models.RequestsModels.SizeDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.SizesController",
+    "Method": "DeleteSize",
+    "RelativePath": "api/Sizes/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "PharmacyAPI.Controllers.SliderController",
     "Method": "GetSliders",
     "RelativePath": "api/Slider",
@@ -872,164 +946,6 @@
         "Name": "Image",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "GetAll",
-    "RelativePath": "api/SubCategory",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "Create",
-    "RelativePath": "api/SubCategory",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "dto",
-        "Type": "PharmacyAPI.Models.RequestsModels.CrudSubCategoryDto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "GetById",
-    "RelativePath": "api/SubCategory/{id}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "Update",
-    "RelativePath": "api/SubCategory/{id}",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "dto",
-        "Type": "PharmacyAPI.Models.RequestsModels.CrudSubCategoryDto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "Delete",
-    "RelativePath": "api/SubCategory/{id}",
-    "HttpMethod": "DELETE",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "SetProducts",
-    "RelativePath": "api/SubCategory/{subCategoryId}/products",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "subCategoryId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "productIds",
-        "Type": "System.Collections.Generic.List\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "AddProduct",
-    "RelativePath": "api/SubCategory/{subCategoryId}/products/{productId}",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "subCategoryId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "productId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "RemoveProduct",
-    "RelativePath": "api/SubCategory/{subCategoryId}/products/{productId}",
-    "HttpMethod": "DELETE",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "subCategoryId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
-        "Name": "productId",
-        "Type": "System.Int32",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "PharmacyAPI.Controllers.SubCategoryController",
-    "Method": "GetByCategory",
-    "RelativePath": "api/SubCategory/category/{categoryId}",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "categoryId",
-        "Type": "System.Int32",
-        "IsRequired": true
       }
     ],
     "ReturnTypes": []

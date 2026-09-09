@@ -5,81 +5,62 @@ namespace PharmacyAPI.Models
         public int Id { get; set; }
 
         public string NameEn { get; set; } = string.Empty;
-
         public string? DescriptionEn { get; set; }
+
         public string NameAr { get; set; } = string.Empty;
-
         public string? DescriptionAr { get; set; }
-
-        // =====================================================
-        // PRICE & STOCK
-        // =====================================================
 
         public decimal Price { get; set; }
         public decimal ActualPrice { get; set; }
 
+        // Used when the product has no variants
         public int StockQuantity { get; set; }
 
-        /// <summary>
-        /// Indicates whether the product is currently in stock.
-        /// </summary>
         public bool IsInStock { get; set; } = true;
 
-        public string? ImageUrl { get; set; }
-
-        public bool IsDeleted { get; set; } = false;
-
-
-        // =====================================================
-        // DISCOUNT
-        // =====================================================
-
-        /// <summary>
-        /// Discount percentage.
-        /// Example: 20 means 20%
-        /// </summary>
         public decimal DiscountPercentage { get; set; } = 0;
 
-
-        /// <summary>
-        /// Indicates whether the product currently has a discount.
-        /// </summary>
         public bool HasDiscount =>
             DiscountPercentage > 0;
 
-
-        /// <summary>
-        /// Final price after applying the discount.
-        /// This is calculated and NOT stored in the database.
-        /// </summary>
         public decimal DiscountedPrice =>
             DiscountPercentage > 0
                 ? Price - (Price * DiscountPercentage / 100)
                 : Price;
 
+        // =========================
+        // CATEGORY
+        // =========================
 
-        // =====================================================
-        // BRAND
-        // =====================================================
+        public int CategoryId { get; set; }
 
-        public int BrandId { get; set; }
+        public Category Category { get; set; } = null!;
 
-        public Brand? Brand { get; set; }
+        // =========================
+        // IMAGES
+        // =========================
 
+        public ICollection<ProductImage> Images { get; set; }
+            = new List<ProductImage>();
 
-        // =====================================================
-        // SUBCATEGORIES
-        // =====================================================
+        // =========================
+        // VARIANTS
+        // =========================
 
-        public ICollection<SubCategory> SubCategories { get; set; }
-            = new List<SubCategory>();
+        public ICollection<ProductVariant> Variants { get; set; }
+            = new List<ProductVariant>();
 
-
-        // =====================================================
-        // ORDER ITEMS
-        // =====================================================
+        // =========================
+        // ORDERS
+        // =========================
 
         public ICollection<OrderItem> OrderItems { get; set; }
             = new List<OrderItem>();
+
+        // =========================
+        // SOFT DELETE
+        // =========================
+
+        public bool IsDeleted { get; set; } = false;
     }
 }

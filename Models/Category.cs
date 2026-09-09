@@ -5,13 +5,15 @@ namespace PharmacyAPI.Models
         public int Id { get; set; }
 
         public string NameAr { get; set; } = string.Empty;
+
         public string NameEn { get; set; } = string.Empty;
 
         public string? ImageUrl { get; set; }
 
         public bool IsDeleted { get; set; } = false;
 
-        public ICollection<SubCategory> SubCategories { get; set; }
-            = new List<SubCategory>();
+        // Products belonging to this category
+        public ICollection<Product> Products { get; set; }
+            = new List<Product>();
     }
 }

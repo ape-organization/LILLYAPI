@@ -30,14 +30,14 @@ namespace PharmacyAPI.Services
 
     public class SliderService : ISliderService
     {
-        private readonly PharmacyDbContext _context;
+        private readonly ShoesDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly IConfiguration _configuration;
         private readonly ImageService _imageService;
 
         public SliderService(
                 IConfiguration configuration,
-            PharmacyDbContext context,
+            ShoesDbContext context,
             IWebHostEnvironment environment,
             ImageService imageService)
         {

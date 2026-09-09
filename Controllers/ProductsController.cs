@@ -13,30 +13,53 @@ namespace PharmacyAPI.Controllers
     {
         private readonly IProductService _productService;
 
+
         public ProductsController(
             IProductService productService)
         {
             _productService = productService;
         }
-        //=================================================
-        // get best seller product 
-        //=================================================
-        [AllowAnonymous]
+
+
+        // =====================================================
+        // GET BEST SELLER PRODUCTS
+        // GET: api/products/best-sellers
+        // =====================================================
+
         [HttpGet("best-sellers")]
+        [AllowAnonymous]
         public async Task<ActionResult<List<ProductResponseDto>>> GetBestSellers(
-    [FromQuery] int count = 10,
-    CancellationToken cancellationToken = default)
+            [FromQuery] int count = 10,
+            CancellationToken cancellationToken = default)
         {
-            var products = await _productService.GetBestSellerProducts(
-                count,
-                cancellationToken);
+            if (count <= 0)
+            {
+                count = 10;
+            }
+
+            var products =
+                await _productService.GetBestSellerProducts(
+                    count,
+                    cancellationToken);
 
             return Ok(products);
         }
 
+
         // =====================================================
         // GET PRODUCTS
         // GET: api/products
+        //
+        // Supported filters:
+        //
+        // page
+        // categoryId
+        // offers
+        //
+        // If filters are used, ProductService returns all
+        // matching products.
+        //
+        // If no filters are used, pagination is applied.
         // =====================================================
 
         [HttpGet]
@@ -44,26 +67,31 @@ namespace PharmacyAPI.Controllers
         public async Task<ActionResult<PagedResponse<ProductResponseDto>>> GetProducts(
             [FromQuery] int page = 1,
             [FromQuery] int? categoryId = null,
-            [FromQuery] int? subCategoryId = null,
-            [FromQuery] int? brandId = null,
             [FromQuery] bool? offers = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _productService.GetProducts(
-                page,
-                categoryId,
-                subCategoryId,
-                brandId,
-                offers,
-                cancellationToken);
+            if (page < 1)
+            {
+                page = 1;
+            }
+
+            var result =
+                await _productService.GetProducts(
+                    page,
+                    categoryId,
+                    offers,
+                    cancellationToken);
 
             return Ok(result);
         }
 
 
         // =====================================================
-        // GET CART PRODUCTS
+        // GET PRODUCTS BY IDS
         // POST: api/products/cart
+        //
+        // Used when the frontend needs specific products.
+        //
         // =====================================================
 
         [HttpPost("cart")]
@@ -75,13 +103,16 @@ namespace PharmacyAPI.Controllers
             if (request?.ProductIds is null ||
                 request.ProductIds.Count == 0)
             {
-                return Ok(new List<ProductResponseDto>());
+                return Ok(
+                    new List<ProductResponseDto>());
             }
+
 
             var products =
                 await _productService.GetProductsByIds(
                     request.ProductIds,
                     cancellationToken);
+
 
             return Ok(products);
         }
@@ -94,8 +125,9 @@ namespace PharmacyAPI.Controllers
 
         [HttpGet("discounted")]
         [AllowAnonymous]
-        public async Task<ActionResult<List<ProductResponseDto>>> GetDiscountedProducts(
-            CancellationToken cancellationToken)
+        public async Task<ActionResult<List<ProductResponseDto>>>
+            GetDiscountedProducts(
+                CancellationToken cancellationToken)
         {
             var products =
                 await _productService.GetDiscountedProducts(
@@ -121,6 +153,7 @@ namespace PharmacyAPI.Controllers
                     id,
                     cancellationToken);
 
+
             if (product is null)
             {
                 return NotFound(new
@@ -128,6 +161,7 @@ namespace PharmacyAPI.Controllers
                     message = "المنتج غير موجود"
                 });
             }
+
 
             return Ok(product);
         }
@@ -151,9 +185,13 @@ namespace PharmacyAPI.Controllers
                         dto,
                         cancellationToken);
 
+
                 return CreatedAtAction(
                     nameof(GetProduct),
-                    new { id = product.Id },
+                    new
+                    {
+                        id = product.Id
+                    },
                     product);
             }
             catch (InvalidOperationException ex)
@@ -193,6 +231,7 @@ namespace PharmacyAPI.Controllers
                         dto,
                         cancellationToken);
 
+
                 if (!updated)
                 {
                     return NotFound(new
@@ -201,8 +240,8 @@ namespace PharmacyAPI.Controllers
                     });
                 }
 
-                // Return 204.
-                // No second SELECT is required.
+
+                // No second database query.
                 return NoContent();
             }
             catch (InvalidOperationException ex)
@@ -237,6 +276,7 @@ namespace PharmacyAPI.Controllers
                     id,
                     cancellationToken);
 
+
             if (product is null)
             {
                 return NotFound(new
@@ -244,6 +284,7 @@ namespace PharmacyAPI.Controllers
                     message = "المنتج غير موجود"
                 });
             }
+
 
             return Ok(product);
         }
@@ -264,6 +305,7 @@ namespace PharmacyAPI.Controllers
                     id,
                     cancellationToken);
 
+
             if (!deleted)
             {
                 return NotFound(new
@@ -271,6 +313,7 @@ namespace PharmacyAPI.Controllers
                     message = "المنتج غير موجود"
                 });
             }
+
 
             return NoContent();
         }
@@ -295,10 +338,12 @@ namespace PharmacyAPI.Controllers
                 });
             }
 
+
             var products =
                 await _productService.GetProductsByName(
                     name,
                     cancellationToken);
+
 
             return Ok(products);
         }
@@ -322,10 +367,12 @@ namespace PharmacyAPI.Controllers
                 });
             }
 
+
             var exists =
                 await _productService.CheckProductExists(
                     name,
                     cancellationToken);
+
 
             return Ok(new
             {

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "oDvGyAF2PFc=",
+  "dgSpecHash": "lDIdAm8smT8=",
   "success": true,
-  "projectFilePath": "D:\\GitHub\\cosmeticsAPI\\PharmacyAPI.csproj",
+  "projectFilePath": "D:\\GitHub\\shopAPI\\PharmacyAPI.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Pola\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\Pola\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",

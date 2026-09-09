@@ -13,9 +13,9 @@ namespace PharmacyAPI.Services
 
     public class ClientService : IClientService
     {
-        private readonly PharmacyDbContext _context;
+        private readonly ShoesDbContext _context;
 
-        public ClientService(PharmacyDbContext context)
+        public ClientService(ShoesDbContext context)
         {
             _context = context;
         }

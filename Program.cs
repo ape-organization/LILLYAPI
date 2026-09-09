@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using PharmacyAPI.Data;
 using PharmacyAPI.Models.Authentication;
 using PharmacyAPI.Services;
+using PharmacyAPI.Services.Interfaces;
 using Prometheus;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -18,7 +19,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 // EF Core
-builder.Services.AddDbContext<PharmacyDbContext>(opt =>
+builder.Services.AddDbContext<ShoesDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 // EF Core
 //builder.Services.AddDbContext<PharmacyDbContext>(opt =>
@@ -37,7 +38,7 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(opt =>
 {
     opt.Password.RequireUppercase = false;
 })
-.AddEntityFrameworkStores<PharmacyDbContext>()
+.AddEntityFrameworkStores<ShoesDbContext>()
 .AddDefaultTokenProviders();
 
 // JWT service
@@ -48,11 +49,11 @@ builder.Services.AddScoped<JwtHandler>();
 builder.Services.AddScoped<ImageService>();
 builder.Services.AddScoped<IProductService,ProductService>();
 builder.Services.AddScoped<ICategoryService,CategoryService>();
-builder.Services.AddScoped<ISubCategoryService, SubCategoryService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ISliderService, SliderService>();
 builder.Services.AddScoped<IClientService, ClientService>();
-builder.Services.AddScoped<  IBrandService, BrandService>();
+builder.Services.AddScoped<ISizeService, SizeService>();
+builder.Services.AddScoped<IHeelSizeService, HeelSizeService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Swagger
@@ -133,24 +134,24 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 // this fro auto migration
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
+//using (var scope = app.Services.CreateScope())
+//{
+//    var services = scope.ServiceProvider;
 
-    try
-    {
-        var db = services.GetRequiredService<PharmacyDbContext>();
+//    try
+//    {
+//        var db = services.GetRequiredService<ShoesDbContext>();
 
-        await db.Database.MigrateAsync();
+//        await db.Database.MigrateAsync();
 
-        Console.WriteLine("Database migrations applied successfully.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Database migration failed: {ex.Message}");
-        throw;
-    }
-}
+//        Console.WriteLine("Database migrations applied successfully.");
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine($"Database migration failed: {ex.Message}");
+//        throw;
+//    }
+//}
 
 app.UseSwagger();
 app.UseSwaggerUI();
@@ -158,11 +159,11 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider("/var/www/uploads"),
-    RequestPath = "/uploads"
-});
+//app.UseStaticFiles(new StaticFileOptions
+//{
+//    FileProvider = new PhysicalFileProvider("/var/www/uploads"),
+//    RequestPath = "/uploads"
+//});
 
 app.UseCors("AllowCors");
 

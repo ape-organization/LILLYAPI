@@ -20,12 +20,12 @@ namespace PharmacyAPI.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly PharmacyDbContext _context;
+        private readonly ShoesDbContext _context;
         private readonly UserManager<ApplicationUser> userManager;
         private readonly RoleManager<ApplicationRole> roleManager;
         private readonly IConfiguration _configuration;
         private readonly JwtHandler _jwtHandler;
-        public UsersController(PharmacyDbContext context,
+        public UsersController(ShoesDbContext context,
             UserManager<ApplicationUser> _userManager,
             RoleManager<ApplicationRole> _roleManager,
             JwtHandler jwtHandler

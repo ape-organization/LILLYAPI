@@ -7,67 +7,78 @@
         public string NameAr { get; set; } = string.Empty;
 
         public string? DescriptionAr { get; set; }
+
         public string NameEn { get; set; } = string.Empty;
 
         public string? DescriptionEn { get; set; }
 
         public decimal Price { get; set; }
+
         public decimal ActualPrice { get; set; }
 
-        public bool IsInStock { get; set; } = true;
+        // Used when the product has no variants
+        public int StockQuantity { get; set; }
+
+        public bool IsInStock { get; set; }
 
         public decimal DiscountPercentage { get; set; }
 
-        public int StockQuantity { get; set; }
-
-        public string? ImageUrl { get; set; }
-
         // =========================
-        // BRAND
+        // CATEGORY
         // =========================
 
-        public int? BrandId { get; set; }
+        public int CategoryId { get; set; }
 
-        public BrandResponseDto? Brand { get; set; }
+        public CategoryResponseDto? Category { get; set; }
 
         // =========================
-        // SUBCATEGORIES
+        // IMAGES
         // =========================
-        public int? CategoryId { get; set; }
-        public List<SubCategoryResponseDto> SubCategories { get; set; }
+
+        public List<ProductImageResponseDto> Images { get; set; }
+            = new();
+
+        // =========================
+        // VARIANTS
+        // =========================
+
+        public List<ProductVariantResponseDto> Variants { get; set; }
             = new();
     }
 
 
-    // =========================================================
-    // BRAND RESPONSE
-    // =========================================================
-
-    public class BrandResponseDto
+    public class CategoryResponseDto
     {
         public int Id { get; set; }
 
         public string NameEn { get; set; } = string.Empty;
-        public string NameAr { get; set; } = string.Empty;
 
-        public string? ImageUrl { get; set; }
+        public string NameAr { get; set; } = string.Empty;
     }
 
 
-    // =========================================================
-    // SUBCATEGORY RESPONSE
-    // =========================================================
-
-    public class SubCategoryResponseDto
+    public class ProductImageResponseDto
     {
         public int Id { get; set; }
 
-        public string NameEn { get; set; } = string.Empty;
-        public string NameAr { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
 
-        public int CategoryId { get; set; }
+        public int SortOrder { get; set; }
+    }
 
-        public string CategoryNameAr { get; set; } = string.Empty;
-        public string CategoryNameEn { get; set; } = string.Empty;
+
+    public class ProductVariantResponseDto
+    {
+        public int Id { get; set; }
+
+        public int? SizeId { get; set; }
+
+        public string? SizeName { get; set; }
+
+        public int? HeelSizeId { get; set; }
+
+        public string? HeelSizeName { get; set; }
+
+        public int StockQuantity { get; set; }
     }
 }

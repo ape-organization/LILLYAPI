@@ -34,20 +34,19 @@ namespace PharmacyAPI.Services
 
     public class CategoryService : ICategoryService
     {
-        private readonly PharmacyDbContext _context;
-        private readonly IWebHostEnvironment _environment;
+        private readonly ShoesDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly ImageService _imageService;
+
+
         public CategoryService(
             ImageService imageService,
             IConfiguration configuration,
-            PharmacyDbContext context,
-            IWebHostEnvironment environment)
+            ShoesDbContext context)
         {
             _imageService = imageService;
             _configuration = configuration;
             _context = context;
-            _environment = environment;
         }
 
 
@@ -61,23 +60,12 @@ namespace PharmacyAPI.Services
             return await _context.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.NameEn)
                 .Select(c => new CategoryMenu
                 {
                     Id = c.Id,
-
                     NameEn = c.NameEn,
-                    NameAr = c.NameAr,
-
-                    SubCategories = c.SubCategories
-                        .Where(sc => !sc.IsDeleted)
-                        .OrderBy(sc => sc.NameEn)
-                        .Select(sc => new SubCategoryMenuDto
-                        {
-                            Id = sc.Id,
-                            NameEn = sc.NameEn,
-                            NameAr = sc.NameAr
-                        })
-                        .ToList()
+                    NameAr = c.NameAr
                 })
                 .ToListAsync(cancellationToken);
         }
@@ -93,8 +81,7 @@ namespace PharmacyAPI.Services
             return await _context.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                
-               
+                .OrderBy(c => c.NameEn)
                 .ToListAsync(cancellationToken);
         }
 
@@ -112,7 +99,6 @@ namespace PharmacyAPI.Services
                 .Where(c =>
                     c.Id == id &&
                     !c.IsDeleted)
-            
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -127,10 +113,53 @@ namespace PharmacyAPI.Services
         {
             ArgumentNullException.ThrowIfNull(dto);
 
+
+            // -------------------------------------------------
+            // VALIDATION
+            // -------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(dto.NameEn))
+            {
+                throw new ArgumentException(
+                    "Category English name is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.NameAr))
+            {
+                throw new ArgumentException(
+                    "Category Arabic name is required.");
+            }
+
+
+            // -------------------------------------------------
+            // CHECK DUPLICATE NAME
+            // -------------------------------------------------
+
+            var exists = await _context.Categories
+                .AnyAsync(
+                    c =>
+                        !c.IsDeleted &&
+                        (
+                            c.NameEn == dto.NameEn ||
+                            c.NameAr == dto.NameAr
+                        ),
+                    cancellationToken);
+
+            if (exists)
+            {
+                throw new InvalidOperationException(
+                    "الفئة موجودة بالفعل.");
+            }
+
+
+            // -------------------------------------------------
+            // CREATE CATEGORY
+            // -------------------------------------------------
+
             var category = new Category
             {
-                NameEn = dto.NameEn,
-                NameAr = dto.NameAr,
+                NameEn = dto.NameEn.Trim(),
+                NameAr = dto.NameAr.Trim(),
                 IsDeleted = false
             };
 
@@ -141,15 +170,23 @@ namespace PharmacyAPI.Services
 
             if (dto.Image is not null)
             {
-                category.ImageUrl = await _imageService.SaveImageAsync(
-                    dto.Image,"categories",
-                    cancellationToken);
+                category.ImageUrl =
+                    await _imageService.SaveImageAsync(
+                        dto.Image,
+                        "categories",
+                        cancellationToken);
             }
 
 
+            // -------------------------------------------------
+            // SAVE
+            // -------------------------------------------------
+
             _context.Categories.Add(category);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(
+                cancellationToken);
+
 
             return category;
         }
@@ -167,24 +204,74 @@ namespace PharmacyAPI.Services
             ArgumentNullException.ThrowIfNull(dto);
 
 
+            // -------------------------------------------------
+            // GET CATEGORY
+            // -------------------------------------------------
+
             var category = await _context.Categories
                 .FirstOrDefaultAsync(
-                    c => c.Id == id && !c.IsDeleted,
+                    c =>
+                        c.Id == id &&
+                        !c.IsDeleted,
                     cancellationToken);
 
 
             if (category is null)
             {
                 throw new KeyNotFoundException(
-                    "الفئات غير متوفره");
+                    "الفئة غير متوفره.");
             }
 
 
-            category.NameEn = dto.NameEn;
-            category.NameAr = dto.NameAr;
+            // -------------------------------------------------
+            // VALIDATION
+            // -------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(dto.NameEn))
+            {
+                throw new ArgumentException(
+                    "Category English name is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.NameAr))
+            {
+                throw new ArgumentException(
+                    "Category Arabic name is required.");
+            }
+
+
+            // -------------------------------------------------
+            // CHECK DUPLICATE NAME
+            // -------------------------------------------------
+
+            var exists = await _context.Categories
+                .AnyAsync(
+                    c =>
+                        c.Id != id &&
+                        !c.IsDeleted &&
+                        (
+                            c.NameEn == dto.NameEn ||
+                            c.NameAr == dto.NameAr
+                        ),
+                    cancellationToken);
+
+            if (exists)
+            {
+                throw new InvalidOperationException(
+                    "الفئة موجودة بالفعل.");
+            }
+
+
+            // -------------------------------------------------
+            // UPDATE BASIC DATA
+            // -------------------------------------------------
+
+            category.NameEn = dto.NameEn.Trim();
+            category.NameAr = dto.NameAr.Trim();
 
 
             string? oldImageUrl = null;
+            string? newImageUrl = null;
 
 
             // -------------------------------------------------
@@ -195,10 +282,19 @@ namespace PharmacyAPI.Services
             {
                 oldImageUrl = category.ImageUrl;
 
-                category.ImageUrl = await _imageService.SaveImageAsync(
-                    dto.Image,"categories",                    cancellationToken);
+                newImageUrl =
+                    await _imageService.SaveImageAsync(
+                        dto.Image,
+                        "categories",
+                        cancellationToken);
+
+                category.ImageUrl = newImageUrl;
             }
 
+
+            // -------------------------------------------------
+            // SAVE DATABASE
+            // -------------------------------------------------
 
             try
             {
@@ -207,11 +303,12 @@ namespace PharmacyAPI.Services
             }
             catch
             {
-                // If database update fails after saving the new
-                // image, remove the newly created image.
-                if (dto.Image is not null)
+                // Database failed after the new image was saved.
+                // Delete the new image so it does not remain orphaned.
+
+                if (!string.IsNullOrWhiteSpace(newImageUrl))
                 {
-                    _imageService.DeleteImage(category.ImageUrl);
+                    _imageService.DeleteImage(newImageUrl);
                 }
 
                 throw;
@@ -219,7 +316,7 @@ namespace PharmacyAPI.Services
 
 
             // -------------------------------------------------
-            // DELETE OLD IMAGE AFTER SUCCESSFUL DB UPDATE
+            // DELETE OLD IMAGE
             // -------------------------------------------------
 
             if (!string.IsNullOrWhiteSpace(oldImageUrl))
@@ -232,293 +329,104 @@ namespace PharmacyAPI.Services
         // =====================================================
         // DELETE CATEGORY
         // =====================================================
+
         public async Task DeleteCategory(
-    int id,
-    CancellationToken cancellationToken = default)
+            int id,
+            CancellationToken cancellationToken = default)
         {
-            // Get category with its subcategories
+            // -------------------------------------------------
+            // GET CATEGORY
+            // -------------------------------------------------
+
             var category = await _context.Categories
-                .Include(c => c.SubCategories)
                 .FirstOrDefaultAsync(
                     c => c.Id == id,
                     cancellationToken);
 
+
             if (category is null)
             {
-                throw new KeyNotFoundException("الفئات غير متوفره");
+                throw new KeyNotFoundException(
+                    "الفئة غير متوفره.");
             }
 
-            // ---------------------------------------------------------
-            // Save category image path before deleting category
-            // ---------------------------------------------------------
 
-            var categoryImageUrl = category.ImageUrl;
+            // -------------------------------------------------
+            // SAVE CATEGORY IMAGE
+            // -------------------------------------------------
 
-            // ---------------------------------------------------------
-            // Get all subcategory IDs
-            // ---------------------------------------------------------
+            var categoryImageUrl =
+                category.ImageUrl;
 
-            var subCategoryIds = category.SubCategories
-                .Select(sc => sc.Id)
-                .ToList();
 
-            // ---------------------------------------------------------
-            // Get ALL products belonging to these subcategories
-            // ---------------------------------------------------------
+            // -------------------------------------------------
+            // GET ALL PRODUCTS OF CATEGORY
+            // -------------------------------------------------
 
             var products = await _context.Products
-                .Include(p => p.SubCategories)
-                .Where(p =>
-                    p.SubCategories.Any(sc =>
-                        subCategoryIds.Contains(sc.Id)))
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .Where(p => p.CategoryId == id)
                 .ToListAsync(cancellationToken);
 
-            // Save product image paths before deleting products
+
+            // -------------------------------------------------
+            // SAVE ALL PRODUCT IMAGE URLS
+            // BEFORE DELETING PRODUCTS
+            // -------------------------------------------------
+
             var productImageUrls = products
-                .Where(p => !string.IsNullOrWhiteSpace(p.ImageUrl))
-                .Select(p => p.ImageUrl!)
+                .SelectMany(p => p.Images)
+                .Where(i =>
+                    !string.IsNullOrWhiteSpace(i.ImageUrl))
+                .Select(i => i.ImageUrl)
                 .ToList();
 
-            // ---------------------------------------------------------
-            // Remove Product <-> SubCategory relationships
-            // ---------------------------------------------------------
 
-            foreach (var product in products)
-            {
-                product.SubCategories.Clear();
-            }
-
-            // ---------------------------------------------------------
-            // Delete all products
-            // ---------------------------------------------------------
+            // -------------------------------------------------
+            // DELETE PRODUCTS
+            // -------------------------------------------------
 
             if (products.Count > 0)
             {
                 _context.Products.RemoveRange(products);
             }
 
-            // ---------------------------------------------------------
-            // Delete all subcategories
-            // ---------------------------------------------------------
 
-            if (category.SubCategories.Count > 0)
-            {
-                _context.SubCategories.RemoveRange(
-                    category.SubCategories);
-            }
-
-            // ---------------------------------------------------------
-            // Delete category
-            // ---------------------------------------------------------
+            // -------------------------------------------------
+            // DELETE CATEGORY
+            // -------------------------------------------------
 
             _context.Categories.Remove(category);
 
-            // ---------------------------------------------------------
-            // Save everything to database
-            // ---------------------------------------------------------
 
-            await _context.SaveChangesAsync(cancellationToken);
+            // -------------------------------------------------
+            // SAVE DATABASE
+            // -------------------------------------------------
 
-            // ---------------------------------------------------------
-            // Delete category image
-            // ---------------------------------------------------------
+            await _context.SaveChangesAsync(
+                cancellationToken);
+
+
+            // -------------------------------------------------
+            // DELETE CATEGORY IMAGE
+            // -------------------------------------------------
 
             if (!string.IsNullOrWhiteSpace(categoryImageUrl))
             {
-                _imageService.DeleteImage(categoryImageUrl);
+                _imageService.DeleteImage(
+                    categoryImageUrl);
             }
 
-            // ---------------------------------------------------------
-            // Delete product images
-            // ---------------------------------------------------------
+
+            // -------------------------------------------------
+            // DELETE PRODUCT IMAGES
+            // -------------------------------------------------
 
             foreach (var imageUrl in productImageUrls)
             {
-                _imageService.DeleteImage (imageUrl);
+                _imageService.DeleteImage(imageUrl);
             }
         }
-        //   public async Task DeleteCategory(
-        //int id,
-        //CancellationToken cancellationToken = default)
-        //   {
-        //       // Get category with its subcategories
-        //       var category = await _context.Categories
-        //           .Include(c => c.SubCategories)
-        //           .FirstOrDefaultAsync(
-        //               c => c.Id == id && !c.IsDeleted,
-        //               cancellationToken);
-
-        //       if (category is null)
-        //       {
-        //           throw new KeyNotFoundException("Category not found.");
-        //       }
-
-        //       // Get all subcategory IDs under this category
-        //       var subCategoryIds = category.SubCategories
-        //           .Select(sc => sc.Id)
-        //           .ToList();
-
-        //       // Soft delete category
-        //       category.IsDeleted = true;
-
-        //       // Soft delete all subcategories
-        //       foreach (var subCategory in category.SubCategories)
-        //       {
-        //           subCategory.IsDeleted = true;
-        //       }
-
-        //       // Soft delete all products belonging to
-        //       // any subcategory under this category
-        //       var products = await _context.Products
-        //           .Include(p => p.SubCategories)
-        //           .Where(p =>
-        //               !p.IsDeleted &&
-        //               p.SubCategories.Any(sc =>
-        //                   subCategoryIds.Contains(sc.Id)))
-        //           .ToListAsync(cancellationToken);
-
-        //       foreach (var product in products)
-        //       {
-        //           product.IsDeleted = true;
-        //       }
-
-        //       await _context.SaveChangesAsync(cancellationToken);
-        //   }
-
-
-        // =====================================================
-        // SAVE IMAGE
-        // =====================================================
-
-        //    private async Task<string> SaveImage(
-        //        IFormFile image,
-        //        CancellationToken cancellationToken)
-        //    {
-        //        if (image.Length == 0)
-        //        {
-        //            throw new ArgumentException(
-        //                "Invalid image.");
-        //        }
-
-
-        //        // -------------------------------------------------
-        //        // ALLOWED EXTENSIONS
-        //        // -------------------------------------------------
-
-        //        var allowedExtensions = new HashSet<string>(
-        //            StringComparer.OrdinalIgnoreCase)
-        //        {
-        //            ".jpg",
-        //            ".jpeg",
-        //            ".png",
-        //            ".webp",
-        //            ".jfif"
-        //        };
-
-
-        //        var extension = Path.GetExtension(
-        //            image.FileName);
-
-
-        //        if (!allowedExtensions.Contains(extension))
-        //        {
-        //            throw new ArgumentException(
-        //                "Only JPG, JPEG, PNG, WEBP and JFIF images are allowed.");
-        //        }
-
-
-        //        // -------------------------------------------------
-        //        // UPLOAD DIRECTORY
-        //        // -------------------------------------------------
-
-        //        //var uploadsFolder = Path.Combine(
-        //        //    _environment.WebRootPath,
-        //        //    "uploads",
-        //        //    "categories");
-        //        var uploadsFolder = Path.Combine(
-        //_configuration["FileStorage:UploadPath"]!,
-        //"categories");
-
-        //        Directory.CreateDirectory(uploadsFolder);
-
-
-        //        // -------------------------------------------------
-        //        // UNIQUE FILE NAME
-        //        // -------------------------------------------------
-
-        //        var fileName =
-        //            $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
-
-
-        //        var filePath = Path.Combine(
-        //            uploadsFolder,
-        //            fileName);
-
-
-        //        // -------------------------------------------------
-        //        // SAVE FILE
-        //        // -------------------------------------------------
-
-        //        await using var stream = new FileStream(
-        //            filePath,
-        //            FileMode.CreateNew,
-        //            FileAccess.Write,
-        //            FileShare.None,
-        //            bufferSize: 64 * 1024,
-        //            useAsync: true);
-
-
-        //        await image.CopyToAsync(
-        //            stream,
-        //            cancellationToken);
-
-
-        //        // -------------------------------------------------
-        //        // DATABASE PATH
-        //        // -------------------------------------------------
-
-        //        return $"/uploads/E_Commerce/categories/{fileName}";
-        //    }
-
-
-        // =====================================================
-        // DELETE IMAGE
-        // =====================================================
-
- //       private void DeleteImage(
- //           string? imageUrl)
- //       {
- //           if (string.IsNullOrWhiteSpace(imageUrl))
- //               return;
-
-
- //           var relativePath = imageUrl.TrimStart(
- //               '/',
- //               '\\');
-
-
- //           //var filePath = Path.Combine(
- //           //    _environment.WebRootPath,
- //           //    relativePath);
- //           var filePath = Path.Combine(
- //_configuration["FileStorage:UploadPath"]!,
- //relativePath);
-
- //           try
- //           {
- //               if (File.Exists(filePath))
- //               {
- //                   File.Delete(filePath);
- //               }
- //           }
- //           catch
- //           {
- //               // Do not fail the database operation because
- //               // an old image could not be deleted.
- //           }
- //       }
-   
-    
-    
     }
 }

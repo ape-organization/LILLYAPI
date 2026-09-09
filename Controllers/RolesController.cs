@@ -13,9 +13,9 @@ namespace PharmacyAPI.Controllers
     [Authorize]
     public class RolesController : ControllerBase
     {
-        private readonly PharmacyDbContext _context;
+        private readonly ShoesDbContext _context;
         private readonly RoleManager<ApplicationRole> roleManager;
-        public RolesController(PharmacyDbContext context,
+        public RolesController(ShoesDbContext context,
             RoleManager<ApplicationRole> _roleManager)
         {
             _context = context;

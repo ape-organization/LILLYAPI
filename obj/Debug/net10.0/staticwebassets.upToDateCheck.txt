@@ -74,3 +74,12 @@ wwwroot\uploads\sliders\6c78c5c3874c416f97a63f2ad74d1477.png
 wwwroot\uploads\sliders\76a7ab6ab5014bc6b38cc6e32f76c34f.jfif
 wwwroot\uploads\sliders\7d36c255105245fd987ea033ebbf1bc0.jpg
 wwwroot\uploads\sliders\8a2ce4bfbf4d41048880b196352c4364.jfif
+wwwroot\uploads\Shop\products\09c21f53d6b74271adcead8a9a261767.png
+wwwroot\uploads\Shop\products\17e57fb258954106a15c48a03b63443b.png
+wwwroot\uploads\Shop\products\222160df5eb347b980372c212bd2deaa.png
+wwwroot\uploads\Shop\products\4c8cff5c0c96442d9bc2f1d5a5ceeb63.jpg
+wwwroot\uploads\Shop\products\1b229f315cc74716b4e0735f2e9785ae.jpg
+wwwroot\uploads\Shop\products\afc3d18e47ce40a392f5c27c9b01ae48.webp
+wwwroot\uploads\Shop\products\d3439a8d654947dab67b73113c6208be.webp
+wwwroot\uploads\Shop\products\035d0c0b78614914a36c43c16e2f7064.jpeg
+wwwroot\uploads\Shop\products\894f64e3d4a542dd86f829104b5aceff.png

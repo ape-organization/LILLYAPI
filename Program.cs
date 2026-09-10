@@ -69,8 +69,8 @@ builder.Services.AddCors(opt =>
          .WithOrigins(
                 "http://localhost:5000",
                 "http://localhost:5555",
-                "https://adminpanel.ape-org.com",
-                "https://e-commerce.ape-org.com"
+                "https://lillyaadminpanel.ape-org.com",
+                "https://lillyclient.ape-org.com"
             )
         .AllowAnyHeader()
         .AllowAnyMethod()

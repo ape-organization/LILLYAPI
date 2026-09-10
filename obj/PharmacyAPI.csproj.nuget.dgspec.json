@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\GitHub\\shopAPI\\PharmacyAPI.csproj": {}
+    "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj": {}
   },
   "projects": {
-    "D:\\GitHub\\shopAPI\\PharmacyAPI.csproj": {
+    "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj": {
       "version": "0.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GitHub\\shopAPI\\PharmacyAPI.csproj",
+        "projectUniqueName": "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj",
         "projectName": "PharmacyAPI",
-        "projectPath": "D:\\GitHub\\shopAPI\\PharmacyAPI.csproj",
+        "projectPath": "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj",
         "packagesPath": "C:\\Users\\Pola\\.nuget\\packages\\",
-        "outputPath": "D:\\GitHub\\shopAPI\\obj\\",
+        "outputPath": "D:\\GitHub\\LILLYAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

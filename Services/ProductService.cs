@@ -641,7 +641,7 @@ namespace PharmacyAPI.Services
 
                 product.CategoryId =
                     dto.CategoryId;
-
+                product.IsInStock=dto.IsInStock;
 
                 // ====================================================
                 // IMAGES

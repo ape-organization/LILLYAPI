@@ -1,9 +1,0 @@
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\035d0c0b78614914a36c43c16e2f7064.jpeg
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\09c21f53d6b74271adcead8a9a261767.png
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\17e57fb258954106a15c48a03b63443b.png
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\1b229f315cc74716b4e0735f2e9785ae.jpg
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\222160df5eb347b980372c212bd2deaa.png
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\4c8cff5c0c96442d9bc2f1d5a5ceeb63.jpg
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\894f64e3d4a542dd86f829104b5aceff.png
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\afc3d18e47ce40a392f5c27c9b01ae48.webp
-D:\GitHub\LILLYAPI\wwwroot\uploads\Shop\products\d3439a8d654947dab67b73113c6208be.webp

@@ -48,7 +48,7 @@ namespace PharmacyAPI.Services.Interfaces
             {
                 return await _context.HeelSizes
                     .AsNoTracking()
-                    .OrderBy(h => h.Id)
+                
                     .Select(h => new HeelSizeDto
                     {
                         Id = h.Id,
@@ -71,7 +71,7 @@ namespace PharmacyAPI.Services.Interfaces
 
                 return await _context.HeelSizes
                     .AsNoTracking()
-                    .Where(h => h.Id == id)
+                    .Where(h => h.Id == id )
                     .Select(h => new HeelSizeDto
                     {
                         Id = h.Id,
@@ -213,9 +213,9 @@ namespace PharmacyAPI.Services.Interfaces
 
                 if (heelSize == null)
                     return false;
+              
 
-
-                _context.HeelSizes.Remove(heelSize);
+            _context.HeelSizes.Remove(heelSize);
 
                 await _context.SaveChangesAsync(cancellationToken);
 

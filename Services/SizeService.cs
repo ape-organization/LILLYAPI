@@ -48,7 +48,7 @@ namespace PharmacyAPI.Services.Interfaces
             {
                 return await _context.Sizes
                     .AsNoTracking()
-                    .OrderBy(s => s.Id)
+                 
                     .Select(s => new SizeDto
                     {
                         Id = s.Id,
@@ -71,7 +71,7 @@ namespace PharmacyAPI.Services.Interfaces
 
                 return await _context.Sizes
                     .AsNoTracking()
-                    .Where(s => s.Id == id)
+                    .Where(s => s.Id == id )
                     .Select(s => new SizeDto
                     {
                         Id = s.Id,
@@ -218,8 +218,7 @@ namespace PharmacyAPI.Services.Interfaces
                 if (size == null)
                     return false;
 
-
-                _context.Sizes.Remove(size);
+            _context.Sizes.Remove(size);
 
                 await _context.SaveChangesAsync(cancellationToken);
 

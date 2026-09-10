@@ -60,7 +60,6 @@ namespace PharmacyAPI.Services
             return await _context.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.NameEn)
                 .Select(c => new CategoryMenu
                 {
                     Id = c.Id,
@@ -81,7 +80,6 @@ namespace PharmacyAPI.Services
             return await _context.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.NameEn)
                 .ToListAsync(cancellationToken);
         }
 
@@ -351,12 +349,7 @@ namespace PharmacyAPI.Services
             }
 
 
-            // -------------------------------------------------
-            // SAVE CATEGORY IMAGE
-            // -------------------------------------------------
-
-            var categoryImageUrl =
-                category.ImageUrl;
+      
 
 
             // -------------------------------------------------
@@ -364,24 +357,12 @@ namespace PharmacyAPI.Services
             // -------------------------------------------------
 
             var products = await _context.Products
-                .Include(p => p.Images)
-                .Include(p => p.Variants)
-                .Where(p => p.CategoryId == id)
+              
+                .Where(p => p.CategoryId == id&&!p.IsDeleted)
                 .ToListAsync(cancellationToken);
 
 
-            // -------------------------------------------------
-            // SAVE ALL PRODUCT IMAGE URLS
-            // BEFORE DELETING PRODUCTS
-            // -------------------------------------------------
-
-            var productImageUrls = products
-                .SelectMany(p => p.Images)
-                .Where(i =>
-                    !string.IsNullOrWhiteSpace(i.ImageUrl))
-                .Select(i => i.ImageUrl)
-                .ToList();
-
+         
 
             // -------------------------------------------------
             // DELETE PRODUCTS
@@ -389,15 +370,20 @@ namespace PharmacyAPI.Services
 
             if (products.Count > 0)
             {
-                _context.Products.RemoveRange(products);
+                products.ForEach(p =>
+                {
+                    p.IsDeleted=true;
+                });
+                _context.Products.UpdateRange(products);
             }
 
 
             // -------------------------------------------------
             // DELETE CATEGORY
             // -------------------------------------------------
-
-            _context.Categories.Remove(category);
+           string categoryImageUrl=category.ImageUrl;
+            category.IsDeleted = true;
+            _context.Categories.Update(category);
 
 
             // -------------------------------------------------
@@ -419,14 +405,7 @@ namespace PharmacyAPI.Services
             }
 
 
-            // -------------------------------------------------
-            // DELETE PRODUCT IMAGES
-            // -------------------------------------------------
-
-            foreach (var imageUrl in productImageUrls)
-            {
-                _imageService.DeleteImage(imageUrl);
-            }
+         
         }
     }
 }

@@ -176,13 +176,14 @@ namespace PharmacyAPI.Services
                 // =====================================================
 
                 var products = await _context.Products
-                    .Where(p =>
-                        productIds.Contains(p.Id) &&
-                        !p.IsDeleted)
-                    .Include(p => p.Variants)
-                    .ToDictionaryAsync(
-                        p => p.Id,
-                        cancellationToken);
+      .Where(p =>
+          productIds.Contains(p.Id) &&
+          !p.IsDeleted)
+      .Include(p => p.Variants
+          .Where(v => v.IsActive))
+      .ToDictionaryAsync(
+          p => p.Id,
+          cancellationToken);
 
 
                 // =====================================================
@@ -349,20 +350,20 @@ namespace PharmacyAPI.Services
                         // CHECK VARIANT STOCK
                         // -------------------------------------------------
 
-                        if (variant.StockQuantity <
-                            requestedItem.Quantity)
-                        {
-                            throw new InvalidOperationException(
-                                "الكمية المطلوبة من المنتج غير متوفرة.");
-                        }
+                        //if (variant.StockQuantity <
+                        //    requestedItem.Quantity)
+                        //{
+                        //    throw new InvalidOperationException(
+                        //        "الكمية المطلوبة من المنتج غير متوفرة.");
+                        //}
 
 
                         // -------------------------------------------------
                         // DECREASE VARIANT STOCK
                         // -------------------------------------------------
 
-                        variant.StockQuantity -=
-                            requestedItem.Quantity;
+                        //variant.StockQuantity -=
+                        //    requestedItem.Quantity;
                     }
 
 
@@ -388,20 +389,20 @@ namespace PharmacyAPI.Services
                         // CHECK PRODUCT STOCK
                         // -------------------------------------------------
 
-                        if (product.StockQuantity <
-                            requestedItem.Quantity)
-                        {
-                            throw new InvalidOperationException(
-                                "الكمية المطلوبة من المنتج غير متوفرة.");
-                        }
+                        //if (product.StockQuantity <
+                        //    requestedItem.Quantity)
+                        //{
+                        //    throw new InvalidOperationException(
+                        //        "الكمية المطلوبة من المنتج غير متوفرة.");
+                        //}
 
 
                         // -------------------------------------------------
                         // DECREASE PRODUCT STOCK
                         // -------------------------------------------------
 
-                        product.StockQuantity -=
-                            requestedItem.Quantity;
+                        //product.StockQuantity -=
+                        //    requestedItem.Quantity;
                     }
 
 
@@ -533,7 +534,7 @@ namespace PharmacyAPI.Services
             return await _context.Orders
                 .AsNoTracking()
                 .OrderByDescending(o => o.OrderDate)
-                .Select(OrderProjection())
+                .Select(OrderProjection()).Take(200)
                 .ToListAsync(cancellationToken);
         }
 

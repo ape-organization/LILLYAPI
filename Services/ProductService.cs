@@ -51,7 +51,7 @@ namespace PharmacyAPI.Services
             List<int> productIds,
             CancellationToken cancellationToken = default);
 
-        Task<List<ProductResponseDto>> GetBestSellerProducts(
+        Task<List<BestSellerProductDto>> GetBestSellerProducts(
             int count = 10,
             CancellationToken cancellationToken = default);
     }
@@ -238,7 +238,6 @@ namespace PharmacyAPI.Services
                             p.NameAr,
                             $"%{name}%")
                     ))
-                .OrderBy(p => p.Id)
                 .Take(SearchLimit)
                 .Select(MapProduct())
                 .ToListAsync(cancellationToken);
@@ -269,7 +268,6 @@ namespace PharmacyAPI.Services
                 .Where(p =>
                     ids.Contains(p.Id) &&
                     !p.IsDeleted)
-                .OrderBy(p => p.Id)
                 .Select(MapProduct())
                 .ToListAsync(cancellationToken);
         }
@@ -296,58 +294,68 @@ namespace PharmacyAPI.Services
         // ============================================================
         // GET BEST SELLERS
         // ============================================================
-
-        public async Task<List<ProductResponseDto>> GetBestSellerProducts(
+        public async Task<List<BestSellerProductDto>> GetBestSellerProducts(
             int count = 10,
             CancellationToken cancellationToken = default)
         {
             count = Math.Clamp(count, 1, 100);
 
-            var bestSellerIds = await _context.OrderItems
+            return await _context.OrderItems
                 .AsNoTracking()
                 .Where(oi =>
                     oi.Order.Status == OrderStatus.Confirmed &&
                     !oi.Product.IsDeleted)
-                .GroupBy(oi => oi.ProductId)
+                .GroupBy(oi => new
+                {
+                    oi.ProductId,
+                    oi.Product.NameEn,
+                    oi.Product.NameAr,
+                    oi.Product.Price,
+                    oi.Product.ActualPrice,
+                    oi.Product.DiscountPercentage,
+                    oi.Product.IsInStock
+                })
                 .Select(g => new
                 {
-                    ProductId = g.Key,
-                    SoldQuantity = g.Sum(x => x.Quantity)
+                    g.Key,
+                    SoldQuantity = g.Sum(oi => oi.Quantity)
                 })
                 .OrderByDescending(x => x.SoldQuantity)
-                .ThenBy(x => x.ProductId)
+                .ThenBy(x => x.Key.ProductId)
                 .Take(count)
-                .Select(x => x.ProductId)
-                .ToListAsync(cancellationToken);
-
-            if (bestSellerIds.Count == 0)
-                return new List<ProductResponseDto>();
-
-            var products = await _context.Products
-                .AsNoTracking()
-                .Where(p =>
-                    bestSellerIds.Contains(p.Id) &&
-                    !p.IsDeleted)
-                .Select(MapProduct())
-                .ToListAsync(cancellationToken);
-
-            // Preserve best-seller ranking.
-            var ranking = bestSellerIds
-                .Select((id, index) => new
+                .Select(x => new BestSellerProductDto
                 {
-                    id,
-                    index
+                    Id = x.Key.ProductId,
+
+                    NameEn = x.Key.NameEn,
+
+                    NameAr = x.Key.NameAr,
+
+                    Price = x.Key.Price,
+
+                    ActualPrice = x.Key.ActualPrice,
+
+                    DiscountPercentage =
+                        x.Key.DiscountPercentage,
+
+                    IsInStock =
+                        x.Key.IsInStock,
+
+                    Images = _context.ProductImages
+                        .Where(image =>
+                            image.ProductId == x.Key.ProductId)
+                        .OrderBy(image => image.SortOrder)
+                        .Select(image =>
+                            new ProductImageResponseDto
+                            {
+                                Id = image.Id,
+                                ImageUrl = image.ImageUrl,
+                                SortOrder = image.SortOrder
+                            })
+                        .ToList()
                 })
-                .ToDictionary(x => x.id, x => x.index);
-
-            products.Sort((a, b) =>
-                ranking[a.Id].CompareTo(
-                    ranking[b.Id]));
-
-            return products;
+                .ToListAsync(cancellationToken);
         }
-
-
         // ============================================================
         // CHECK PRODUCT EXISTS
         // ============================================================
@@ -441,10 +449,7 @@ namespace PharmacyAPI.Services
 
                     IsDeleted = false,
 
-                    IsInStock = CalculateProductStockStatus(
-                        dto.StockQuantity,
-                        dto.IsInStock,
-                        dto.Variants)
+                    IsInStock =dto.IsInStock
                 };
 
 
@@ -595,15 +600,6 @@ namespace PharmacyAPI.Services
                 dto.Variants != null &&
                 dto.Variants.Count > 0;
 
-
-            // --------------------------------------------------------
-            // If variants exist, product-level stock is not used.
-            // --------------------------------------------------------
-
-            if (hasVariants)
-            {
-                dto.StockQuantity = 0;
-            }
 
 
             var uploadedImageUrls = new List<string>();
@@ -1353,12 +1349,12 @@ namespace PharmacyAPI.Services
             // Stock
             // --------------------------------------------------------
 
-            if (variants.Any(v =>
-                    v.StockQuantity < 0))
-            {
-                throw new InvalidOperationException(
-                    "كميه المخزون لا يمكن ان تكون اقل من الصفر");
-            }
+            //if (variants.Any(v =>
+            //        v.StockQuantity < 0))
+            //{
+            //    throw new InvalidOperationException(
+            //        "كميه المخزون لا يمكن ان تكون اقل من الصفر");
+            //}
 
 
             // --------------------------------------------------------
@@ -1478,10 +1474,12 @@ namespace PharmacyAPI.Services
                     ? null
                     : dto.DescriptionEn.Trim();
 
+
             dto.DescriptionAr =
                 string.IsNullOrWhiteSpace(dto.DescriptionAr)
                     ? null
                     : dto.DescriptionAr.Trim();
+            
 
             dto.Images ??=
                 new List<ProductImageDto>();
@@ -1628,5 +1626,8 @@ namespace PharmacyAPI.Services
                     imageUrl);
             }
         }
+    
+    
+    
     }
 }

@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Http;
+
+namespace PharmacyAPI.Services;
+
 public class ImageService
 {
     private readonly string _uploadPath;
@@ -31,14 +35,15 @@ public class ImageService
         if (!allowedExtensions.Contains(extension))
             throw new ArgumentException("نوع الصوره ليس متوافر");
 
-        if (extension == ".jfif")
-            extension = ".jpg";
-
         var folderPath = Path.Combine(
             _uploadPath,
             folder);
 
         Directory.CreateDirectory(folderPath);
+        if (extension == ".jfif")
+        {
+            extension = ".jpg";
+        }
 
         var fileName = $"{Guid.NewGuid():N}{extension}";
 
@@ -54,26 +59,21 @@ public class ImageService
             stream,
             cancellationToken);
 
-        // URL وليس physical path
-        return $"/uploads/{folder}/{fileName}";
+        return $"/uploads/Shop/{folder}/{fileName}";
     }
-
-    public void DeleteImage(string imageUrl)
+    public async  void DeleteImage(string imageUrl)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(imageUrl))
-                return;
-
             var relativePath = imageUrl
                 .TrimStart('/')
                 .Replace(
-                    "uploads/",
+                    "uploads/Shop/",
                     "",
                     StringComparison.OrdinalIgnoreCase);
 
             var filePath = Path.Combine(
-                _uploadPath,
+               _uploadPath,
                 relativePath);
 
             if (File.Exists(filePath))
@@ -87,4 +87,5 @@ public class ImageService
                 $"خطا في مسح الصوره '{imageUrl}': {ex.Message}");
         }
     }
+
 }

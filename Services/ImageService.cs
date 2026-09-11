@@ -5,11 +5,15 @@ namespace PharmacyAPI.Services;
 public class ImageService
 {
     private readonly string _uploadPath;
-
+    private readonly string _requestPath;
+    
     public ImageService(IConfiguration configuration)
     {
         _uploadPath = configuration["FileStorage:UploadPath"]
             ?? "/var/www/uploads/Shop";
+    
+        _requestPath = configuration["FileStorage:RequestPath"]
+            ?? "/uploads/Shop";
     }
 
     public async Task<string> SaveImageAsync(
@@ -59,21 +63,21 @@ public class ImageService
             stream,
             cancellationToken);
 
-        return $"/uploads/_uploadPath/{folder}/{fileName}";
+        return $"{_requestPath}/{folder}/{fileName}";
     }
     public async  void DeleteImage(string imageUrl)
     {
         try
         {
             var relativePath = imageUrl
-                .TrimStart('/')
                 .Replace(
-                    "uploads/_uploadPath/",
+                    _requestPath,
                     "",
-                    StringComparison.OrdinalIgnoreCase);
-
+                    StringComparison.OrdinalIgnoreCase)
+                .TrimStart('/');
+            
             var filePath = Path.Combine(
-               _uploadPath,
+                _uploadPath,
                 relativePath);
 
             if (File.Exists(filePath))

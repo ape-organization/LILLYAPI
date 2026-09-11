@@ -59,7 +59,7 @@ public class ImageService
             stream,
             cancellationToken);
 
-        return $"/uploads/Shop/{folder}/{fileName}";
+        return $"/uploads/_uploadPath/{folder}/{fileName}";
     }
     public async  void DeleteImage(string imageUrl)
     {
@@ -68,7 +68,7 @@ public class ImageService
             var relativePath = imageUrl
                 .TrimStart('/')
                 .Replace(
-                    "uploads/Shop/",
+                    "uploads/_uploadPath/",
                     "",
                     StringComparison.OrdinalIgnoreCase);
 

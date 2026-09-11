@@ -153,13 +153,6 @@ var app = builder.Build();
 //    }
 //}
 
-app.UseStaticFiles();
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadPath),
-    RequestPath = requestPath
-});
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();

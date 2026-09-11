@@ -9,7 +9,7 @@ public class ImageService
     public ImageService(IConfiguration configuration)
     {
         _uploadPath = configuration["FileStorage:UploadPath"]
-            ?? "/var/www/uploads/Shop";
+            ?? "/var/www/uploads/LILLY";
     }
 
     public async Task<string> SaveImageAsync(
@@ -59,7 +59,7 @@ public class ImageService
             stream,
             cancellationToken);
 
-        return $"/uploads/Shop/{folder}/{fileName}";
+        return $"/uploads/LILLY/{folder}/{fileName}";
     }
     public async  void DeleteImage(string imageUrl)
     {
@@ -68,7 +68,7 @@ public class ImageService
             var relativePath = imageUrl
                 .TrimStart('/')
                 .Replace(
-                    "uploads/Shop/",
+                    "uploads/LILLY/",
                     "",
                     StringComparison.OrdinalIgnoreCase);
 

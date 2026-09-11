@@ -11,6 +11,7 @@ using PharmacyAPI.Services.Interfaces;
 using Prometheus;
 using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -152,7 +153,19 @@ var app = builder.Build();
 //        throw;
 //    }
 //}
+var uploadPath = builder.Configuration["FileStorage:UploadPath"]
+                 ?? "/var/www/uploads/Shop";
 
+var requestPath = builder.Configuration["FileStorage:RequestPath"]
+                  ?? "/uploads/Shop";
+
+app.UseStaticFiles();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadPath),
+    RequestPath = requestPath
+});
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();

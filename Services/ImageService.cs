@@ -1,19 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
-
-namespace PharmacyAPI.Services;
-
 public class ImageService
 {
     private readonly string _uploadPath;
-    private readonly string _requestPath;
-    
+
     public ImageService(IConfiguration configuration)
     {
         _uploadPath = configuration["FileStorage:UploadPath"]
             ?? "/var/www/uploads/Shop";
-    
-        _requestPath = configuration["FileStorage:RequestPath"]
-            ?? "/uploads/Shop";
     }
 
     public async Task<string> SaveImageAsync(
@@ -39,15 +31,14 @@ public class ImageService
         if (!allowedExtensions.Contains(extension))
             throw new ArgumentException("نوع الصوره ليس متوافر");
 
+        if (extension == ".jfif")
+            extension = ".jpg";
+
         var folderPath = Path.Combine(
             _uploadPath,
             folder);
 
         Directory.CreateDirectory(folderPath);
-        if (extension == ".jfif")
-        {
-            extension = ".jpg";
-        }
 
         var fileName = $"{Guid.NewGuid():N}{extension}";
 
@@ -63,19 +54,24 @@ public class ImageService
             stream,
             cancellationToken);
 
-        return $"{_requestPath}/{folder}/{fileName}";
+        // URL وليس physical path
+        return $"/uploads/{folder}/{fileName}";
     }
-    public async  void DeleteImage(string imageUrl)
+
+    public void DeleteImage(string imageUrl)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                return;
+
             var relativePath = imageUrl
+                .TrimStart('/')
                 .Replace(
-                    _requestPath,
+                    "uploads/",
                     "",
-                    StringComparison.OrdinalIgnoreCase)
-                .TrimStart('/');
-            
+                    StringComparison.OrdinalIgnoreCase);
+
             var filePath = Path.Combine(
                 _uploadPath,
                 relativePath);
@@ -91,5 +87,4 @@ public class ImageService
                 $"خطا في مسح الصوره '{imageUrl}': {ex.Message}");
         }
     }
-
 }

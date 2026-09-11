@@ -71,7 +71,7 @@ builder.Services.AddCors(opt =>
                 "http://localhost:5000",
                 "http://localhost:5555",
                 "https://lillyadminpanel.ape-org.com",
-                "https://lillyclient.ape-org.com"
+                "https://lilly.ape-org.com"
             )
         .AllowAnyHeader()
         .AllowAnyMethod()

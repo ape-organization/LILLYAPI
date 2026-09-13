@@ -3,6 +3,7 @@ namespace PharmacyAPI.Models
     public class Product
     {
         public int Id { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public string NameEn { get; set; } = string.Empty;
         public string? DescriptionEn { get; set; }

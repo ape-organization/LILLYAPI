@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PharmacyAPI.Data;
 using PharmacyAPI.Models;
+using PharmacyAPI.Models.RequestsModels;
 
 namespace PharmacyAPI.Services
 {
@@ -20,6 +21,8 @@ namespace PharmacyAPI.Services
             _context = context;
         }
 
+        
+        
         // =====================================================
         // GET CLIENT BY PHONE
         // =====================================================

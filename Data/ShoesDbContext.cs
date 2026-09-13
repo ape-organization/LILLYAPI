@@ -24,7 +24,10 @@ namespace PharmacyAPI.Data
         public DbSet<ProductImage> ProductImages { get; set; }
 
         public DbSet<ProductVariant> ProductVariants { get; set; }
-
+        // ==========================================================
+        // visitors
+        // ==========================================================
+        public DbSet<WebsiteVisit> websiteVisits { get; set; }
 
         // ============================================================
         // CATEGORIES
@@ -443,81 +446,44 @@ namespace PharmacyAPI.Data
 
                 entity.HasIndex(i => i.ProductVariantId);
             });
+            //==================================================
+            // visitors
+            // =================================================
+            modelBuilder.Entity<WebsiteVisit>(entity =>
+            {
+                entity.HasKey(x => x.Id);
 
+                entity.Property(x => x.VisitorId)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.VisitedAt)
+                    .IsRequired();
+
+             
+            });
 
             // ========================================================
-            // CART
+            // INDEXES
             // ========================================================
-
-            //modelBuilder.Entity<Cart>(entity =>
-            //{
-            //    entity.HasKey(c => c.Id);
-
-
-            //    // ----------------------------------------------------
-            //    // Cart → Client
-            //    // ----------------------------------------------------
-
-            //    entity.HasOne(c => c.Client)
-            //        .WithMany()
-            //        .HasForeignKey(c => c.ClientId)
-            //        .OnDelete(DeleteBehavior.Cascade);
-
-
-            //    entity.HasIndex(c => c.ClientId);
-            //});
-
-
-            //// ========================================================
-            //// CART ITEM
-            //// ========================================================
-
-            //modelBuilder.Entity<CartItem>(entity =>
-            //{
-            //    entity.HasKey(i => i.Id);
-
-
-            //    // ----------------------------------------------------
-            //    // Cart → CartItems
-            //    // ----------------------------------------------------
-
-            //    entity.HasOne(i => i.Cart)
-            //        .WithMany(c => c.Items)
-            //        .HasForeignKey(i => i.CartId)
-            //        .OnDelete(DeleteBehavior.Cascade);
-
-
-            //    // ----------------------------------------------------
-            //    // Product → CartItems
-            //    // ----------------------------------------------------
-
-            //    entity.HasOne(i => i.Product)
-            //        .WithMany()
-            //        .HasForeignKey(i => i.ProductId)
-            //        .OnDelete(DeleteBehavior.Restrict);
-
-
-            //    // ----------------------------------------------------
-            //    // ProductVariant → CartItems
-            //    // ----------------------------------------------------
-
-            //    entity.HasOne(i => i.ProductVariant)
-            //        .WithMany()
-            //        .HasForeignKey(i => i.ProductVariantId)
-            //        .OnDelete(DeleteBehavior.Restrict);
-
-
-            //    // ----------------------------------------------------
-            //    // Indexes
-            //    // ----------------------------------------------------
-
-            //    entity.HasIndex(i => i.CartId);
-
-            //    entity.HasIndex(i => i.ProductId);
-
-            //    entity.HasIndex(i => i.ProductVariantId);
-            //});
-
+            modelBuilder.Entity<WebsiteVisit>()
+    .HasIndex(x => new
+    {
+        x.VisitedAt,
+        x.VisitorId
+    });
+            modelBuilder.Entity<Order>()
+    .HasIndex(x => new
+    {
+        x.Status,
+        x.OrderDate
+    });
+            modelBuilder.Entity<OrderItem>()
+                .HasIndex(x => new
+                {
+                    x.OrderId,
+                    x.ProductId
+                });
 
             // ========================================================
             // CLIENT

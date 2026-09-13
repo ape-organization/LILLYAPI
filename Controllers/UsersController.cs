@@ -38,6 +38,7 @@ namespace PharmacyAPI.Controllers
             _jwtHandler = jwtHandler;
             _configuration = configuration;
         }
+        // website visitors
 
         //authentication section 
         [HttpPost("Login")]

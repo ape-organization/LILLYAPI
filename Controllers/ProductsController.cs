@@ -85,6 +85,40 @@ namespace PharmacyAPI.Controllers
             return Ok(result);
         }
 
+        //===========================================
+        //new arrival 
+        //===========================================
+        [HttpGet("new")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<ProductResponseDto>>> GetNewArrivalProducts(
+      
+            CancellationToken cancellationToken = default)
+        {
+           
+
+            var result =
+                await _productService.GetNewArrivalProducts(cancellationToken);
+
+            return Ok(result);
+        }
+
+        //===========================================
+        //new arrival 
+        //===========================================
+        [HttpGet("byCatID/{id:int}/{productId:int}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<ProductResponseDto>>> GetProductsbyCategory(int id,int productId,
+
+            CancellationToken cancellationToken = default)
+        {
+
+
+            var result =
+                await _productService.getProductsbyCategory(id,productId, cancellationToken);
+
+            return Ok(result);
+        }
+
 
         // =====================================================
         // GET PRODUCTS BY IDS

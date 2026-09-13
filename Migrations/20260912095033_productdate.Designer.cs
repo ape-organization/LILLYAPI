@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PharmacyAPI.Data;
 
@@ -11,9 +12,11 @@ using PharmacyAPI.Data;
 namespace PharmacyAPI.Migrations
 {
     [DbContext(typeof(ShoesDbContext))]
-    partial class ShoesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912095033_productdate")]
+    partial class productdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -640,29 +643,6 @@ namespace PharmacyAPI.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Sliders");
-                });
-
-            modelBuilder.Entity("PharmacyAPI.Models.WebsiteVisit", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("VisitedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("VisitorId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VisitedAt", "VisitorId");
-
-                    b.ToTable("websiteVisits");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

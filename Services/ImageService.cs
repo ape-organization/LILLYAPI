@@ -59,6 +59,7 @@ public class ImageService
             stream,
             cancellationToken);
 
+
         return $"/uploads/Shop/{folder}/{fileName}";
     }
     public async  void DeleteImage(string imageUrl)

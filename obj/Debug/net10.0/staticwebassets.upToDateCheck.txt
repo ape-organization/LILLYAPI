@@ -85,3 +85,7 @@ wwwroot\uploads\sliders\8a2ce4bfbf4d41048880b196352c4364.jfif
 wwwroot\uploads\Shop\categories\af20fa6319ab43f3b56aa9b48de77494.jpg
 wwwroot\uploads\Shop\products\ecaed8a7a2994f33bddd4f452ae7d0ef.jpg
 wwwroot\uploads\Shop\categories\5977393b8238454f9e29fa6feb31596d.jpg
+wwwroot\uploads\Shop\products\a071f9cf438649e8a63dfba3c2338dd6.jpg
+wwwroot\uploads\Shop\products\d121d1cc2293496184da12393ae074e3.jpg
+wwwroot\uploads\Shop\products\34abc666900c4a4da1ca1caaa933629f.jpg
+wwwroot\uploads\Shop\products\6e846626cd1e4b57bb50ef5f219d8d5c.jpg

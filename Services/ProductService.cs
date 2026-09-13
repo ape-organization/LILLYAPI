@@ -54,6 +54,10 @@ namespace PharmacyAPI.Services
         Task<List<BestSellerProductDto>> GetBestSellerProducts(
             int count = 10,
             CancellationToken cancellationToken = default);
+        Task<List< ProductResponseDto>> GetNewArrivalProducts(
+    CancellationToken cancellationToken = default);
+        Task<List<ProductResponseDto>> getProductsbyCategory(int categoryID, int productID,
+            CancellationToken cancellationToken = default);
     }
 
 
@@ -79,6 +83,53 @@ namespace PharmacyAPI.Services
             _context = context;
             _logger = logger;
         }
+        //=========================================================
+        // get new arrivale products 
+        //=========================================================
+        public async Task<List< ProductResponseDto>> GetNewArrivalProducts(
+            CancellationToken cancellationToken = default)
+        {
+            var fromDate = DateTime.UtcNow.AddMonths(-1);
+
+            var products =await _context.Products
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted  && p.CreatedAt >= fromDate)
+                 .Take(50)
+               .Select(MapProduct())
+                .ToListAsync(cancellationToken);
+
+
+
+           // var products = await query
+           //.Take(50)
+           //     .Select(MapProduct())
+           //     .ToListAsync(cancellationToken);
+
+            return products;
+        }
+
+        //=========================================================
+        // get first same category products
+        //=========================================================
+        public async Task<List< ProductResponseDto>> getProductsbyCategory(int categoryID,int productID,
+            CancellationToken cancellationToken = default)
+        {
+            
+
+            var products = await _context.Products
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted && p.CategoryId== categoryID
+                 &&p.Id!=productID).Take(30).Select(MapProduct())
+                .ToListAsync(cancellationToken); ;
+
+
+
+            //var products = await query.Select(MapProduct())
+            //    .ToListAsync(cancellationToken);
+
+            return products;
+        }
+
 
 
         // ============================================================
@@ -86,14 +137,22 @@ namespace PharmacyAPI.Services
         // ============================================================
 
         public async Task<PagedResponse<ProductResponseDto>> GetProducts(
-            int page = 1,
-            int? categoryId = null,
-            bool? offers = null,
-            CancellationToken cancellationToken = default)
+    int page = 1,
+    int? categoryId = null,
+    bool? offers = null,
+    CancellationToken cancellationToken = default)
         {
+            // --------------------------------------------------------
+            // NORMALIZE PAGE
+            // --------------------------------------------------------
+
             page = Math.Max(page, 1);
 
-            var query = _context.Products
+            // --------------------------------------------------------
+            // BASE QUERY
+            // --------------------------------------------------------
+
+            IQueryable<Product> query = _context.Products
                 .AsNoTracking()
                 .Where(p => !p.IsDeleted);
 
@@ -118,40 +177,15 @@ namespace PharmacyAPI.Services
             }
 
             // --------------------------------------------------------
-            // FILTERED REQUEST
-            //
-            // As agreed:
-            // return ALL matching products.
-            // --------------------------------------------------------
-
-            var hasFilters =
-                categoryId.HasValue ||
-                offers == true;
-
-            if (hasFilters)
-            {
-                var filteredProducts = await query
-                    .OrderBy(p => p.Id)
-                    .Select(MapProduct())
-                    .ToListAsync(cancellationToken);
-
-                return new PagedResponse<ProductResponseDto>
-                {
-                    Items = filteredProducts,
-                    TotalCount = filteredProducts.Count,
-                    Page = 1,
-                    PageSize = filteredProducts.Count,
-                    TotalPages = filteredProducts.Count > 0 ? 1 : 0,
-                    HasMore = false
-                };
-            }
-
-            // --------------------------------------------------------
-            // NORMAL PAGINATION
+            // TOTAL COUNT
             // --------------------------------------------------------
 
             var totalCount = await query
                 .CountAsync(cancellationToken);
+
+            // --------------------------------------------------------
+            // NO RESULTS
+            // --------------------------------------------------------
 
             if (totalCount == 0)
             {
@@ -166,16 +200,30 @@ namespace PharmacyAPI.Services
                 };
             }
 
+            // --------------------------------------------------------
+            // PAGINATION INFO
+            // --------------------------------------------------------
+
             var totalPages =
                 (int)Math.Ceiling(
                     totalCount / (double)PageSize);
+
+            // --------------------------------------------------------
+            // PAGINATED PRODUCTS
+            // IMPORTANT:
+            // Filters are already applied before Skip/Take.
+            // --------------------------------------------------------
 
             var products = await query
                 .OrderBy(p => p.Id)
                 .Skip((page - 1) * PageSize)
                 .Take(PageSize)
-                .Select(MapProduct())
+                .Select(MapAllProduct())
                 .ToListAsync(cancellationToken);
+
+            // --------------------------------------------------------
+            // RESPONSE
+            // --------------------------------------------------------
 
             return new PagedResponse<ProductResponseDto>
             {
@@ -187,6 +235,110 @@ namespace PharmacyAPI.Services
                 HasMore = page < totalPages
             };
         }
+
+
+        //public async Task<PagedResponse<ProductResponseDto>> GetProducts(
+        //    int page = 1,
+        //    int? categoryId = null,
+        //    bool? offers = null,
+        //    CancellationToken cancellationToken = default)
+        //{
+        //    page = Math.Max(page, 1);
+
+        //    var query = _context.Products
+        //        .AsNoTracking()
+        //        .Where(p => !p.IsDeleted);
+
+        //    // --------------------------------------------------------
+        //    // CATEGORY FILTER
+        //    // --------------------------------------------------------
+
+        //    if (categoryId.HasValue)
+        //    {
+        //        query = query.Where(p =>
+        //            p.CategoryId == categoryId.Value);
+        //    }
+
+        //    // --------------------------------------------------------
+        //    // OFFERS FILTER
+        //    // --------------------------------------------------------
+
+        //    if (offers == true)
+        //    {
+        //        query = query.Where(p =>
+        //            p.DiscountPercentage > 0);
+        //    }
+
+        //    // --------------------------------------------------------
+        //    // FILTERED REQUEST
+        //    //
+        //    // As agreed:
+        //    // return ALL matching products.
+        //    // --------------------------------------------------------
+
+        //    var hasFilters =
+        //        categoryId.HasValue ||
+        //        offers == true;
+
+        //    if (hasFilters)
+        //    {
+        //        var filteredProducts = await query
+        //            .OrderBy(p => p.Id)
+        //            .Select(MapProduct())
+        //            .ToListAsync(cancellationToken);
+
+        //        return new PagedResponse<ProductResponseDto>
+        //        {
+        //            Items = filteredProducts,
+        //            TotalCount = filteredProducts.Count,
+        //            Page = 1,
+        //            PageSize = filteredProducts.Count,
+        //            TotalPages = filteredProducts.Count > 0 ? 1 : 0,
+        //            HasMore = false
+        //        };
+        //    }
+
+        //    // --------------------------------------------------------
+        //    // NORMAL PAGINATION
+        //    // --------------------------------------------------------
+
+        //    var totalCount = await query
+        //        .CountAsync(cancellationToken);
+
+        //    if (totalCount == 0)
+        //    {
+        //        return new PagedResponse<ProductResponseDto>
+        //        {
+        //            Items = new List<ProductResponseDto>(),
+        //            TotalCount = 0,
+        //            Page = page,
+        //            PageSize = PageSize,
+        //            TotalPages = 0,
+        //            HasMore = false
+        //        };
+        //    }
+
+        //    var totalPages =
+        //        (int)Math.Ceiling(
+        //            totalCount / (double)PageSize);
+
+        //    var products = await query
+        //        .OrderBy(p => p.Id)
+        //        .Skip((page - 1) * PageSize)
+        //        .Take(PageSize)
+        //        .Select(MapProduct())
+        //        .ToListAsync(cancellationToken);
+
+        //    return new PagedResponse<ProductResponseDto>
+        //    {
+        //        Items = products,
+        //        TotalCount = totalCount,
+        //        Page = page,
+        //        PageSize = PageSize,
+        //        TotalPages = totalPages,
+        //        HasMore = page < totalPages
+        //    };
+        //}
 
 
         // ============================================================
@@ -205,7 +357,7 @@ namespace PharmacyAPI.Services
                 .Where(p =>
                     p.Id == id &&
                     !p.IsDeleted)
-                .Select(MapProduct())
+                .Select(MapAllProduct())
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -239,7 +391,7 @@ namespace PharmacyAPI.Services
                             $"%{name}%")
                     ))
                 .Take(SearchLimit)
-                .Select(MapProduct())
+                .Select(MapAllProduct())
                 .ToListAsync(cancellationToken);
         }
 
@@ -294,68 +446,183 @@ namespace PharmacyAPI.Services
         // ============================================================
         // GET BEST SELLERS
         // ============================================================
+
         public async Task<List<BestSellerProductDto>> GetBestSellerProducts(
-            int count = 10,
-            CancellationToken cancellationToken = default)
+    int count = 10,
+    CancellationToken cancellationToken = default)
         {
             count = Math.Clamp(count, 1, 100);
 
-            return await _context.OrderItems
+            var fromDate = DateTime.UtcNow.AddMonths(-2);
+
+            // --------------------------------------------------------
+            // 1. FIND TOP BEST-SELLING PRODUCT IDS
+            //
+            // One product counts once per confirmed order.
+            // --------------------------------------------------------
+
+            var bestSellerIds = await _context.OrderItems
                 .AsNoTracking()
                 .Where(oi =>
                     oi.Order.Status == OrderStatus.Confirmed &&
-                    !oi.Product.IsDeleted)
+                    oi.Order.OrderDate >= fromDate &&
+                    !oi.Product.IsDeleted &&
+                    oi.Product.IsInStock)
                 .GroupBy(oi => new
                 {
                     oi.ProductId,
-                    oi.Product.NameEn,
-                    oi.Product.NameAr,
-                    oi.Product.Price,
-                    oi.Product.ActualPrice,
-                    oi.Product.DiscountPercentage,
-                    oi.Product.IsInStock
+                    oi.OrderId
                 })
+                .Select(g => g.Key)
+                .GroupBy(x => x.ProductId)
                 .Select(g => new
                 {
-                    g.Key,
-                    SoldQuantity = g.Sum(oi => oi.Quantity)
+                    ProductId = g.Key,
+                    OrderCount = g.Count()
                 })
-                .OrderByDescending(x => x.SoldQuantity)
-                .ThenBy(x => x.Key.ProductId)
+                .OrderByDescending(x => x.OrderCount)
+                .ThenBy(x => x.ProductId)
                 .Take(count)
-                .Select(x => new BestSellerProductDto
+                .ToListAsync(cancellationToken);
+
+            if (bestSellerIds.Count == 0)
+                return [];
+
+            // --------------------------------------------------------
+            // 2. LOAD ONLY THE TOP PRODUCTS
+            // --------------------------------------------------------
+
+            var productIds = bestSellerIds
+                .Select(x => x.ProductId)
+                .ToList();
+
+            var products = await _context.Products
+                .AsNoTracking()
+                .Where(p =>
+                    productIds.Contains(p.Id) &&
+                    !p.IsDeleted)
+                .Select(p => new BestSellerProductDto
                 {
-                    Id = x.Key.ProductId,
+                    Id = p.Id,
+                    NameEn = p.NameEn,
+                    NameAr = p.NameAr,
+                    Price = p.Price,
+                    ActualPrice = p.ActualPrice,
+                    DiscountPercentage = p.DiscountPercentage,
+                    IsInStock = p.IsInStock,
 
-                    NameEn = x.Key.NameEn,
-
-                    NameAr = x.Key.NameAr,
-
-                    Price = x.Key.Price,
-
-                    ActualPrice = x.Key.ActualPrice,
-
-                    DiscountPercentage =
-                        x.Key.DiscountPercentage,
-
-                    IsInStock =
-                        x.Key.IsInStock,
-
-                    Images = _context.ProductImages
-                        .Where(image =>
-                            image.ProductId == x.Key.ProductId)
-                        .OrderBy(image => image.SortOrder)
-                        .Select(image =>
-                            new ProductImageResponseDto
-                            {
-                                Id = image.Id,
-                                ImageUrl = image.ImageUrl,
-                                SortOrder = image.SortOrder
-                            })
+                    Images = p.Images
+                        .OrderBy(i => i.SortOrder)
+                        .Select(i => new ProductImageResponseDto
+                        {
+                            Id = i.Id,
+                            ImageUrl = i.ImageUrl,
+                            SortOrder = i.SortOrder
+                        })
                         .ToList()
                 })
                 .ToListAsync(cancellationToken);
+
+            // --------------------------------------------------------
+            // 3. RESTORE BEST-SELLER ORDER
+            // --------------------------------------------------------
+
+            var ranking = bestSellerIds
+                .Select((x, index) => new
+                {
+                    x.ProductId,
+                    Rank = index
+                })
+                .ToDictionary(x => x.ProductId, x => x.Rank);
+
+            return products
+                .OrderBy(p => ranking[p.Id])
+                .ToList();
         }
+
+        //    public async Task<List<BestSellerProductDto>> GetBestSellerProducts(
+        //int count = 10,
+        //CancellationToken cancellationToken = default)
+        //    {
+        //        count = Math.Clamp(count, 1, 100);
+
+        //        var fromDate = DateTime.UtcNow.AddMonths(-2);
+
+        //        // 1. Find products appearing in the most confirmed orders
+        //        //    during the last two months.
+        //        var bestSellerIds = await _context.OrderItems
+        //            .AsNoTracking()
+        //            .Where(oi =>
+        //                oi.Order.Status == OrderStatus.Confirmed && 
+        //                oi.Product.IsInStock &&
+        //                oi.Order.OrderDate >= fromDate &&
+        //                !oi.Product.IsDeleted)
+        //            .Select(oi => new
+        //            {
+        //                oi.ProductId,
+        //                oi.OrderId
+        //            })
+        //            .Distinct()
+        //            .GroupBy(x => x.ProductId)
+        //            .Select(g => new
+        //            {
+        //                ProductId = g.Key,
+        //                OrderCount = g.Count()
+        //            })
+        //            .OrderByDescending(x => x.OrderCount)
+        //            .ThenBy(x => x.ProductId)
+        //            .Take(count)
+        //            .ToListAsync(cancellationToken);
+
+        //        if (bestSellerIds.Count == 0)
+        //            return [];
+
+        //        // 2. Get only the products that are actually in the top list.
+        //        var productIds = bestSellerIds
+        //            .Select(x => x.ProductId)
+        //            .ToList();
+
+        //        var products = await _context.Products
+        //            .AsNoTracking()
+        //            .Where(p =>
+        //                productIds.Contains(p.Id) &&
+        //                !p.IsDeleted)
+        //            .Select(p => new BestSellerProductDto
+        //            {
+        //                Id = p.Id,
+        //                NameEn = p.NameEn,
+        //                NameAr = p.NameAr,
+        //                Price = p.Price,
+        //                ActualPrice = p.ActualPrice,
+        //                DiscountPercentage = p.DiscountPercentage,
+        //                IsInStock = p.IsInStock,
+
+        //                Images = p.Images
+        //                    .OrderBy(i => i.SortOrder)
+        //                    .Select(i => new ProductImageResponseDto
+        //                    {
+        //                        Id = i.Id,
+        //                        ImageUrl = i.ImageUrl,
+        //                        SortOrder = i.SortOrder
+        //                    })
+        //                    .ToList()
+        //            })
+        //            .ToListAsync(cancellationToken);
+
+        //        // 3. Restore the best-seller ranking.
+        //        var ranking = bestSellerIds
+        //            .Select((x, index) => new
+        //            {
+        //                x.ProductId,
+        //                Rank = index
+        //            })
+        //            .ToDictionary(x => x.ProductId, x => x.Rank);
+
+        //        return products.ToList();
+        //    }
+
+
+
         // ============================================================
         // CHECK PRODUCT EXISTS
         // ============================================================
@@ -1055,6 +1322,107 @@ namespace PharmacyAPI.Services
         private static Expression<
             Func<Product, ProductResponseDto>>
             MapProduct()
+        {
+            return p => new ProductResponseDto
+            {
+                Id = p.Id,
+
+                NameEn = p.NameEn,
+
+                NameAr = p.NameAr,
+
+                //DescriptionEn =
+                //    p.DescriptionEn,
+
+                //DescriptionAr =
+                //    p.DescriptionAr,
+
+                Price =
+                    p.Price,
+
+                ActualPrice =
+                    p.ActualPrice,
+
+                StockQuantity =
+                    p.StockQuantity,
+
+                IsInStock =
+                    p.IsInStock,
+
+                DiscountPercentage =
+                    p.DiscountPercentage,
+
+                CategoryId =
+                    p.CategoryId,
+
+                //Category =
+                //    p.Category == null
+                //        ? null
+                //        : new CategoryResponseDto
+                //        {
+                //            Id =
+                //                p.Category.Id,
+
+                //            NameEn =
+                //                p.Category.NameEn,
+
+                //            NameAr =
+                //                p.Category.NameAr
+                //        },
+
+                Images =
+                    p.Images
+                        .OrderBy(i => i.SortOrder)
+                        .Select(i =>
+                            new ProductImageResponseDto
+                            {
+                                Id =
+                                    i.Id,
+
+                                ImageUrl =
+                                    i.ImageUrl,
+
+                                SortOrder =
+                                    i.SortOrder
+                            })
+                        .ToList(),
+
+                Variants =
+                    p.Variants
+                        .Where(v => v.IsActive)
+                        .OrderBy(v => v.Id)
+                        .Select(v =>
+                            new ProductVariantResponseDto
+                            {
+                                Id =
+                                    v.Id,
+
+                                SizeId =
+                                    v.SizeId,
+
+                                SizeName =
+                                    v.Size != null
+                                        ? v.Size.Name
+                                        : null,
+
+                                HeelSizeId =
+                                    v.HeelSizeId,
+
+                                HeelSizeName =
+                                    v.HeelSize != null
+                                        ? v.HeelSize.Name
+                                        : null,
+
+                                StockQuantity =
+                                    v.StockQuantity
+                            })
+                        .ToList()
+            };
+        }
+
+        private static Expression<
+           Func<Product, ProductResponseDto>>
+           MapAllProduct()
         {
             return p => new ProductResponseDto
             {

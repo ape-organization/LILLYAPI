@@ -3,28 +3,12 @@
   "WorkspaceRootPath": "D:\\GitHub\\LILLYAPI\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\controllers\\orderscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:controllers\\orderscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\services\\orderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:services\\orderservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\controllers\\websitevisitscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:controllers\\websitevisitscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\services\\websitevisitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:services\\websitevisitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\controllers\\productscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:controllers\\productscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|d:\\github\\lillyapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|PharmacyAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\controllers\\orderscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:controllers\\orderscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -34,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 7,
           "Children": [
             {
               "$type": "Bookmark",
@@ -62,80 +46,28 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "OrdersController.cs",
               "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Controllers\\OrdersController.cs",
               "RelativeDocumentMoniker": "Controllers\\OrdersController.cs",
               "ToolTip": "D:\\GitHub\\LILLYAPI\\Controllers\\OrdersController.cs",
               "RelativeToolTip": "Controllers\\OrdersController.cs",
-              "ViewState": "AgIAAAsAAAAAAAAAAAAnwBMAAAASAAAAAAAAAA==",
+              "ViewState": "AgIAADEAAAAAAAAAAAAkwFkAAAASAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-13T11:55:25.351Z",
+              "WhenOpened": "2026-09-15T08:35:14.256Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "WebsiteVisitsController.cs",
-              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Controllers\\WebsiteVisitsController.cs",
-              "RelativeDocumentMoniker": "Controllers\\WebsiteVisitsController.cs",
-              "ToolTip": "D:\\GitHub\\LILLYAPI\\Controllers\\WebsiteVisitsController.cs",
-              "RelativeToolTip": "Controllers\\WebsiteVisitsController.cs",
-              "ViewState": "AgIAABkAAAAAAAAAAAApwB0AAAAVAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "OrderService.cs",
+              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\OrderService.cs",
+              "RelativeDocumentMoniker": "Services\\OrderService.cs",
+              "ToolTip": "D:\\GitHub\\LILLYAPI\\Services\\OrderService.cs",
+              "RelativeToolTip": "Services\\OrderService.cs",
+              "ViewState": "AgIAAA4CAAAAAAAAAAAkwCECAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-13T11:11:16.973Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "WebsiteVisitService.cs",
-              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\WebsiteVisitService.cs",
-              "RelativeDocumentMoniker": "Services\\WebsiteVisitService.cs",
-              "ToolTip": "D:\\GitHub\\LILLYAPI\\Services\\WebsiteVisitService.cs",
-              "RelativeToolTip": "Services\\WebsiteVisitService.cs",
-              "ViewState": "AgIAADMAAAAAAAAAAAAowEcAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-13T11:06:23.266Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "D:\\GitHub\\LILLYAPI\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-09-13T09:34:38.33Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "ProductService.cs",
-              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\ProductService.cs",
-              "RelativeDocumentMoniker": "Services\\ProductService.cs",
-              "ToolTip": "D:\\GitHub\\LILLYAPI\\Services\\ProductService.cs",
-              "RelativeToolTip": "Services\\ProductService.cs",
-              "ViewState": "AgIAAFQAAAAAAAAAAAAAAFoAAAAIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-12T19:04:15.861Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "ProductsController.cs",
-              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Controllers\\ProductsController.cs",
-              "RelativeDocumentMoniker": "Controllers\\ProductsController.cs",
-              "ToolTip": "D:\\GitHub\\LILLYAPI\\Controllers\\ProductsController.cs",
-              "RelativeToolTip": "Controllers\\ProductsController.cs",
-              "ViewState": "AgIAAE4AAAAAAAAAAAAtwFoAAAAVAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-12T15:31:50.391Z",
+              "WhenOpened": "2026-09-15T08:33:50.281Z",
               "EditorCaption": ""
             }
           ]

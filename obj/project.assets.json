@@ -5202,9 +5202,9 @@
   "project": {
     "version": "0.0.0",
     "restore": {
-      "projectUniqueName": "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj",
-      "projectName": "PharmacyAPI",
-      "projectPath": "D:\\GitHub\\LILLYAPI\\PharmacyAPI.csproj",
+      "projectUniqueName": "D:\\GitHub\\LILLYAPI\\LilyAPI.csproj",
+      "projectName": "LilyAPI",
+      "projectPath": "D:\\GitHub\\LILLYAPI\\LilyAPI.csproj",
       "packagesPath": "C:\\Users\\Pola\\.nuget\\packages\\",
       "outputPath": "D:\\GitHub\\LILLYAPI\\obj\\",
       "projectStyle": "PackageReference",

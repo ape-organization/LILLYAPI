@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PharmacyAPI.Models.RequestsModels;
+using PharmacyAPI.Models.Responses;
 using PharmacyAPI.Services;
 
 namespace PharmacyAPI.Controllers
@@ -84,14 +85,21 @@ namespace PharmacyAPI.Controllers
         // =====================================================
 
         [HttpGet]
-        public async Task<IActionResult> GetOrders(
-            CancellationToken cancellationToken)
+        public async Task<ActionResult<PagedResponse<OrderDto>>> GetOrders(
+  int page = 1,
+  int pageSize = 30,
+  CancellationToken cancellationToken = default)
         {
-            var orders = await _orderService.GetOrders(
+            var result = await _orderService.GetOrders(
+                page,
+                pageSize,
                 cancellationToken);
 
-            return Ok(orders);
+            return Ok(result);
         }
+
+
+
 
         // =====================================================
         // GET ORDER

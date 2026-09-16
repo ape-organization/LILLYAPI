@@ -306,7 +306,7 @@ namespace PharmacyAPI.Services
 
                 if (!string.IsNullOrWhiteSpace(newImageUrl))
                 {
-                    _imageService.DeleteImage(newImageUrl);
+                 await   _imageService.DeleteImageAsync(newImageUrl);
                 }
 
                 throw;
@@ -319,7 +319,7 @@ namespace PharmacyAPI.Services
 
             if (!string.IsNullOrWhiteSpace(oldImageUrl))
             {
-                _imageService.DeleteImage(oldImageUrl);
+              await  _imageService.DeleteImageAsync(oldImageUrl);
             }
         }
 
@@ -400,7 +400,7 @@ namespace PharmacyAPI.Services
 
             if (!string.IsNullOrWhiteSpace(categoryImageUrl))
             {
-                _imageService.DeleteImage(
+             await   _imageService.DeleteImageAsync(
                     categoryImageUrl);
             }
 

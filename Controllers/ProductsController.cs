@@ -85,6 +85,30 @@ namespace PharmacyAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("admin")]
+        [Authorize]
+        public async Task<ActionResult<PagedResponse<ProductResponseDto>>> AdminGetProducts(
+            [FromQuery] int page = 1,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] bool? offers = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (page < 1)
+            {
+                page = 1;
+            }
+
+            var result =
+                await _productService.AdminGetProducts(
+                    page,
+                    categoryId,
+                    offers,
+                    cancellationToken);
+
+            return Ok(result);
+        }
+
+
         //===========================================
         //new arrival 
         //===========================================

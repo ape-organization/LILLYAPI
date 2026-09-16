@@ -293,6 +293,28 @@ namespace PharmacyAPI.Data
                     v.IsActive
                 });
             });
+            ///=====================product index ==================
+            modelBuilder.Entity<Product>()
+    .HasIndex(p => new
+    {
+        p.IsDeleted,
+        p.CategoryId,
+        p.Id
+    });
+            modelBuilder.Entity<Product>()
+    .HasIndex(p => new
+    {
+        p.IsDeleted,
+        p.CategoryId,
+        p.Id
+    });
+            modelBuilder.Entity<Product>()
+    .HasIndex(p => new
+    {
+        p.IsDeleted,
+        p.DiscountPercentage,
+        p.Id
+    });
 
 
             // ========================================================

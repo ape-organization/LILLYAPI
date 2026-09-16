@@ -667,6 +667,42 @@
   },
   {
     "ContainingType": "PharmacyAPI.Controllers.ProductsController",
+    "Method": "AdminGetProducts",
+    "RelativePath": "api/Products/admin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "categoryId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "offers",
+        "Type": "System.Nullable\u00601[[System.Boolean, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "PharmacyAPI.Models.Responses.PagedResponse\u00601[[PharmacyAPI.Models.RequestsModels.ProductResponseDto, LilyAPI, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "PharmacyAPI.Controllers.ProductsController",
     "Method": "GetBestSellers",
     "RelativePath": "api/Products/best-sellers",
     "HttpMethod": "GET",

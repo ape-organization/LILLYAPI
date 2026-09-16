@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore for layer caching
-COPY ["PharmacyAPI.csproj", "./"]
+COPY ["LilyAPI.csproj", "./"]
 
 RUN dotnet restore "PharmacyAPI.csproj"
 
@@ -14,7 +14,7 @@ RUN dotnet restore "PharmacyAPI.csproj"
 COPY . .
 
 # Publish
-RUN dotnet publish "PharmacyAPI.csproj" \
+RUN dotnet publish "LilyAPI.csproj" \
     -c Release \
     -o /app/publish \
     /p:UseAppHost=false
@@ -35,4 +35,4 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 # Run application
-ENTRYPOINT ["dotnet", "PharmacyAPI.dll"]
+ENTRYPOINT ["dotnet", "LilyAPI.dll"]

@@ -2,7 +2,7 @@ docker-compose.yml
 version: "3.8"
 
 services:
-  pharmacyapi:
+  LilyAPI:
     build:
       context: .
       dockerfile: Dockerfile

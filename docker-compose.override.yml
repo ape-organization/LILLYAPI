@@ -1,14 +1,14 @@
 version: "3.8"
 
 services:
-  pharmacyapi:
+  LilyAPI:
     # Development override: mount source and use dotnet watch for fast edit/run iterations.
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
       - .:/src:cached
-    command: ["dotnet", "watch", "run", "--project", "PharmacyAPI.csproj", "--urls", "http://+:80"]
+    command: ["dotnet", "watch", "run", "--project", "LilyAPI.csproj", "--urls", "http://+:80"]
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     ports:

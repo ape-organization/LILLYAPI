@@ -8,7 +8,7 @@ WORKDIR /src
 # Copy csproj and restore for layer caching
 COPY ["LilyAPI.csproj", "./"]
 
-RUN dotnet restore "PharmacyAPI.csproj"
+RUN dotnet restore "LilyAPI.csproj"
 
 # Copy remaining sources
 COPY . .

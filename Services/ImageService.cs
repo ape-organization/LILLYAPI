@@ -5,8 +5,7 @@ namespace PharmacyAPI.Services;
 public sealed class ImageService
 {
     private readonly string _uploadPath;
-
-    private const string UploadUrlPrefix = "/uploads/Shop/";
+    private readonly string _uploadUrlPrefix;
 
     private static readonly HashSet<string> AllowedExtensions =
         new(StringComparer.OrdinalIgnoreCase)
@@ -18,14 +17,16 @@ public sealed class ImageService
             ".jfif"
         };
 
-
     public ImageService(IConfiguration configuration)
     {
         _uploadPath =
             configuration["FileStorage:UploadPath"]
-            ?? "/var/www/uploads/Shop";
-    }
+            ?? "/var/www/uploads/LILLY";
 
+        _uploadUrlPrefix =
+            configuration["FileStorage:UploadUrlPrefix"]
+            ?? "/uploads/LILLY/";
+    }
 
     // ============================================================
     // SAVE IMAGE
@@ -39,66 +40,50 @@ public sealed class ImageService
         if (image is null || image.Length == 0)
             throw new ArgumentException("الصورة مطلوبة");
 
-
         var extension =
             Path.GetExtension(image.FileName)
                 .ToLowerInvariant();
 
-
         if (!AllowedExtensions.Contains(extension))
             throw new ArgumentException("نوع الصورة غير متوافر");
-
 
         if (string.IsNullOrWhiteSpace(folder))
             throw new ArgumentException("مجلد الصورة مطلوب");
 
-
-        // Prevent folder traversal
         folder = SanitizeFolder(folder);
 
-
-        var folderPath =
-            Path.Combine(
-                _uploadPath,
-                folder);
-
-
-        Directory.CreateDirectory(folderPath);
-
-
-        // JFIF is JPEG data, so store it as .jpg
         if (extension == ".jfif")
             extension = ".jpg";
 
+        var folderPath =
+            Path.Combine(_uploadPath, folder);
+
+        Directory.CreateDirectory(folderPath);
 
         var fileName =
             $"{Guid.NewGuid():N}{extension}";
 
-
         var filePath =
-            Path.Combine(
-                folderPath,
-                fileName);
+            Path.Combine(folderPath, fileName);
 
-
-        await using var stream =
-            new FileStream(
-                filePath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 64 * 1024,
-                useAsync: true);
-
+        await using var stream = new FileStream(
+            filePath,
+            new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                BufferSize = 128 * 1024,
+                Options = FileOptions.Asynchronous |
+                          FileOptions.SequentialScan
+            });
 
         await image.CopyToAsync(
             stream,
             cancellationToken);
 
-
-        return $"{UploadUrlPrefix}{folder}/{fileName}";
+        return $"{_uploadUrlPrefix.TrimEnd('/')}/{folder}/{fileName}";
     }
-
 
     // ============================================================
     // DELETE IMAGE
@@ -110,83 +95,70 @@ public sealed class ImageService
         if (string.IsNullOrWhiteSpace(imageUrl))
             return Task.CompletedTask;
 
-
         try
         {
             var relativePath =
                 GetRelativePath(imageUrl);
 
-
             if (relativePath is null)
                 return Task.CompletedTask;
-
 
             var filePath =
                 Path.Combine(
                     _uploadPath,
                     relativePath);
 
-
             if (File.Exists(filePath))
-            {
                 File.Delete(filePath);
-            }
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(
-                $"خطأ في مسح الصورة '{imageUrl}': {ex.Message}");
+            // Never allow image cleanup failure
+            // to break product operations.
         }
-
 
         return Task.CompletedTask;
     }
-
 
     // ============================================================
     // GET RELATIVE PATH
     // ============================================================
 
-    private static string? GetRelativePath(
+    private string? GetRelativePath(
         string imageUrl)
     {
         var value =
             imageUrl.Trim();
 
+        var prefix =
+            _uploadUrlPrefix.TrimEnd('/') + "/";
 
-        // Only accept our own upload URLs
         if (!value.StartsWith(
-                UploadUrlPrefix,
+                prefix,
                 StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-
         var relativePath =
-            value[UploadUrlPrefix.Length..];
-
+            value[prefix.Length..];
 
         if (string.IsNullOrWhiteSpace(relativePath))
             return null;
 
-
-        // Prevent ../ traversal
         if (
-            relativePath.Contains("..", StringComparison.Ordinal) ||
-            Path.IsPathRooted(relativePath)
-        )
+            relativePath.Contains(
+                "..",
+                StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativePath))
         {
             return null;
         }
 
-
-        return relativePath
-            .Replace(
-                '/',
-                Path.DirectorySeparatorChar);
+        return relativePath.Replace(
+            '/',
+            Path.DirectorySeparatorChar);
     }
-
 
     // ============================================================
     // SANITIZE FOLDER
@@ -201,16 +173,15 @@ public sealed class ImageService
                       Path.DirectorySeparatorChar,
                       Path.AltDirectorySeparatorChar);
 
-
         if (
-            folder.Contains("..", StringComparison.Ordinal) ||
-            Path.IsPathRooted(folder)
-        )
+            folder.Contains(
+                "..",
+                StringComparison.Ordinal) ||
+            Path.IsPathRooted(folder))
         {
             throw new ArgumentException(
                 "مجلد الصورة غير صالح");
         }
-
 
         return folder;
     }

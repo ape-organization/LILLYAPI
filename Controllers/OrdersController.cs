@@ -22,10 +22,16 @@ namespace PharmacyAPI.Controllers
         public async Task<ActionResult<DashboardStatsDto>> GetCurrentMonthStats(
      CancellationToken cancellationToken)
         {
+            try { 
             var result = await _orderService.GetCurrentMonthStats(
                 cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -33,10 +39,16 @@ namespace PharmacyAPI.Controllers
         public async Task<ActionResult<DashboardStatsDto>> GetTotalStats(
             CancellationToken cancellationToken)
         {
+            try { 
             var result = await _orderService.GetTotalStats(
                 cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
         // =====================================================
         // CREATE ORDER
@@ -87,15 +99,21 @@ namespace PharmacyAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResponse<OrderDto>>> GetOrders(
   int page = 1,
-  int pageSize = 30,
+  int pageSize = 100,
   CancellationToken cancellationToken = default)
         {
+            try { 
             var result = await _orderService.GetOrders(
                 page,
                 pageSize,
                 cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -111,6 +129,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var order = await _orderService.GetOrder(
                 id,
                 cancellationToken);
@@ -124,6 +143,11 @@ namespace PharmacyAPI.Controllers
             }
 
             return Ok(order);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         // =====================================================
@@ -136,12 +160,18 @@ namespace PharmacyAPI.Controllers
             int clientId,
             CancellationToken cancellationToken)
         {
+            try { 
             var orders =
                 await _orderService.GetOrdersByClient(
                     clientId,
                     cancellationToken);
 
             return Ok(orders);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         // =====================================================

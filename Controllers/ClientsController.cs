@@ -28,27 +28,34 @@ namespace PharmacyAPI.Controllers
             string phone,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(phone))
+            try
             {
-                return BadRequest(new
+                if (string.IsNullOrWhiteSpace(phone))
                 {
-                    message = "رقم الهاتف مطلوب"
-                });
+                    return BadRequest(new
+                    {
+                        message = "رقم الهاتف مطلوب"
+                    });
+                }
+
+                var client = await _clientService.GetByPhone(
+                    phone,
+                    cancellationToken);
+
+                if (client == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "العميل غير متوفر"
+                    });
+                }
+
+                return Ok(client);
             }
-
-            var client = await _clientService.GetByPhone(
-                phone,
-                cancellationToken);
-
-            if (client == null)
+            catch (Exception e)
             {
-                return NotFound(new
-                {
-                    message = "العميل غير متوفر"
-                });
+                return BadRequest(e.Message);
             }
-
-            return Ok(client);
         }
     }
 }

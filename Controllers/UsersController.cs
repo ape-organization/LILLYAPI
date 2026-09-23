@@ -45,6 +45,7 @@ namespace PharmacyAPI.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login(UserDto userForAuthentication)
         {
+            try { 
             var user = await userManager.FindByEmailAsync(userForAuthentication.Email);
 
             if (user == null ||
@@ -84,6 +85,11 @@ namespace PharmacyAPI.Controllers
                 Token = accessToken,
                 RefreshToken = refreshToken
             });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
         [HttpPost("refresh")]
         [AllowAnonymous]
@@ -228,7 +234,13 @@ namespace PharmacyAPI.Controllers
         //need edit to get user role too
         public async Task<ActionResult<IEnumerable<ApplicationUser>>> GetUsers()
         {
+            try { 
             return await _context.Users.Where(user => user.IsActive == true).ToListAsync();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         [HttpGet("{id}")]
@@ -324,6 +336,7 @@ namespace PharmacyAPI.Controllers
         [Authorize]
         public async Task<IActionResult> UpdateUser(UpdateUserDto updateUserDto)
         {
+            try { 
             var user = await userManager.FindByEmailAsync( updateUserDto.Email);
             if (user == null) return NotFound();
 
@@ -337,17 +350,28 @@ namespace PharmacyAPI.Controllers
                 Status = true,
                 Message = user.Id,
             });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         [HttpPost()]
         [Authorize]
         public async Task<IActionResult> DeleteUser(UpdateUserDto data)
         {
+            try { 
             var user = await userManager.FindByIdAsync(data.Id.ToString());
             if (user == null) return NotFound();
             user.IsActive=false;
             await userManager.UpdateAsync(user);
             return NoContent();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         public static string GenerateRefreshToken()

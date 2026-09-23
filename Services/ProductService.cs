@@ -226,7 +226,7 @@ namespace PharmacyAPI.Services
             // --------------------------------------------------------
 
             var products = await query
-                .OrderBy(p => p.Id)
+                .OrderByDescending(p => p.CreatedAt)
                 .Skip(skip)
                 .Take(PageSize)
                 .Select(MapProduct())
@@ -321,7 +321,7 @@ namespace PharmacyAPI.Services
             // --------------------------------------------------------
 
             var products = await query
-                .OrderBy(p => p.Id)
+               .OrderByDescending(p => p.CreatedAt)
                 .Skip(skip)
                 .Take(PageSize)
                 .Select(MapAllProduct())
@@ -356,6 +356,7 @@ namespace PharmacyAPI.Services
                 .Where(p =>
                     p.Id == id &&
                     !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
                 .Select(MapAllProduct())
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -389,7 +390,7 @@ namespace PharmacyAPI.Services
                             p.NameAr,
                             $"%{name}%")
                     ))
-                .OrderBy(p => p.Id)
+                .OrderByDescending(p => p.CreatedAt)
                 .Take(SearchLimit)
                 .Select(MapProduct())
                 .ToListAsync(cancellationToken);
@@ -437,7 +438,7 @@ namespace PharmacyAPI.Services
                 .Where(p =>
                     !p.IsDeleted &&
                     p.DiscountPercentage > 0)
-                .OrderBy(p => p.Id)
+                .OrderByDescending(p => p.CreatedAt)
                 .Select(MapProduct())
                 .ToListAsync(cancellationToken);
         }
@@ -578,7 +579,6 @@ namespace PharmacyAPI.Services
         // ============================================================
         // CREATE PRODUCT
         // ============================================================
-
         public async Task<ProductDto> CreateProduct(
             ProductDto dto,
             CancellationToken cancellationToken = default)
@@ -586,22 +586,18 @@ namespace PharmacyAPI.Services
             ArgumentNullException.ThrowIfNull(dto);
 
             NormalizeProductDto(dto);
-
             ValidateBasicProductData(dto);
 
-            var hasVariants =
-                dto.Variants.Count > 0;
+            var hasVariants = dto.Variants.Count > 0;
 
-            // Product-level stock is not used
-            // when variants exist.
             if (hasVariants)
             {
                 dto.StockQuantity = 0;
             }
 
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
             // VALIDATION
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
 
             await ValidateProductName(
                 dto.NameEn,
@@ -616,10 +612,9 @@ namespace PharmacyAPI.Services
                 dto.Variants,
                 cancellationToken);
 
-
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
             // CREATE ENTITY
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
 
             var product = new Product
             {
@@ -644,16 +639,14 @@ namespace PharmacyAPI.Services
                 IsInStock = dto.IsInStock
             };
 
-
             var uploadedImageUrls =
                 new List<string>();
 
-
             try
             {
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // IMAGES
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 await AddNewImages(
                     product,
@@ -661,10 +654,9 @@ namespace PharmacyAPI.Services
                     uploadedImageUrls,
                     cancellationToken);
 
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // VARIANTS
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 if (hasVariants)
                 {
@@ -687,47 +679,38 @@ namespace PharmacyAPI.Services
                     }
                 }
 
+                // --------------------------------------------------------
+                // ADD ENTITY GRAPH
+                // --------------------------------------------------------
 
-                // ----------------------------------------------------
-                // ADD GRAPH
-                // ----------------------------------------------------
-
-                // AutoDetectChanges is disabled while EF traverses
-                // the new graph. We explicitly detect once afterwards.
                 var previousAutoDetect =
-                    _context.ChangeTracker
-                        .AutoDetectChangesEnabled;
+                    _context.ChangeTracker.AutoDetectChangesEnabled;
 
                 try
                 {
-                    _context.ChangeTracker
-                        .AutoDetectChangesEnabled = false;
+                    _context.ChangeTracker.AutoDetectChangesEnabled = false;
 
                     _context.Products.Add(product);
                 }
                 finally
                 {
-                    _context.ChangeTracker
-                        .AutoDetectChangesEnabled =
+                    _context.ChangeTracker.AutoDetectChangesEnabled =
                         previousAutoDetect;
                 }
 
+                // One explicit change detection.
+                _context.ChangeTracker.DetectChanges();
 
-                _context.ChangeTracker
-                    .DetectChanges();
-
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // SAVE
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 await _context.SaveChangesAsync(
                     cancellationToken);
 
-
-                // ----------------------------------------------------
-                // UPDATE RETURN DTO
-                // ----------------------------------------------------
+                // --------------------------------------------------------
+                // UPDATE DTO
+                // --------------------------------------------------------
 
                 dto.Id = product.Id;
 
@@ -737,60 +720,47 @@ namespace PharmacyAPI.Services
                 dto.IsInStock =
                     product.IsInStock;
 
+                dto.Images =
+                    product.Images
+                        .OrderBy(i => i.SortOrder)
+                        .Select(i => new ProductImageDto
+                        {
+                            Id = i.Id,
+                            ImageUrl = i.ImageUrl,
+                            SortOrder = i.SortOrder
+                        })
+                        .ToList();
 
-                dto.Images = product.Images
-                    .OrderBy(i => i.SortOrder)
-                    .Select(i => new ProductImageDto
-                    {
-                        Id = i.Id,
-
-                        ImageUrl =
-                            i.ImageUrl,
-
-                        SortOrder =
-                            i.SortOrder
-                    })
-                    .ToList();
-
-
-                dto.Variants = product.Variants
-                    .OrderBy(v => v.Id)
-                    .Select(v => new ProductVariantDto
-                    {
-                        SizeId =
-                            v.SizeId,
-
-                        HeelSizeId =
-                            v.HeelSizeId,
-
-                        StockQuantity =
-                            v.StockQuantity
-                    })
-                    .ToList();
-
+                dto.Variants =
+                    product.Variants
+                        .OrderBy(v => v.Id)
+                        .Select(v => new ProductVariantDto
+                        {
+                            SizeId = v.SizeId,
+                            HeelSizeId = v.HeelSizeId,
+                            StockQuantity = v.StockQuantity
+                        })
+                        .ToList();
 
                 return dto;
             }
             catch
             {
-                // DB failed after files were uploaded.
-                // Remove those files to prevent orphan files.
-                DeleteUploadedImages(
-                    uploadedImageUrls);
+                // Remove files if database operation fails.
+                DeleteUploadedImages(uploadedImageUrls);
 
                 throw;
             }
         }
-
 
         // ============================================================
         // UPDATE PRODUCT
         // ============================================================
 
         public async Task<bool> UpdateProduct(
-            int id,
-            UpdateProductDto dto,
-            CancellationToken cancellationToken = default)
+      int id,
+      UpdateProductDto dto,
+      CancellationToken cancellationToken = default)
         {
             if (id <= 0)
                 return false;
@@ -798,37 +768,29 @@ namespace PharmacyAPI.Services
             ArgumentNullException.ThrowIfNull(dto);
 
             NormalizeProductDto(dto);
-
             ValidateBasicProductData(dto);
 
+            // ------------------------------------------------------------
+            // LOAD PRODUCT
+            // ------------------------------------------------------------
 
-            // --------------------------------------------------------
-            // LOAD TRACKED PRODUCT
-            //
-            // SplitQuery prevents:
-            //
-            // Images × Variants
-            //
-            // from producing a cartesian result set.
-            // --------------------------------------------------------
-
-            var product = await _context.Products
-                .Include(p => p.Images)
-                .Include(p => p.Variants)
-                .AsSplitQuery()
-                .FirstOrDefaultAsync(
-                    p =>
-                        p.Id == id &&
-                        !p.IsDeleted,
-                    cancellationToken);
+            var product =
+                await _context.Products
+                    .Include(p => p.Images)
+                    .Include(p => p.Variants)
+                    .AsSplitQuery()
+                    .FirstOrDefaultAsync(
+                        p =>
+                            p.Id == id &&
+                            !p.IsDeleted,
+                        cancellationToken);
 
             if (product == null)
                 return false;
 
-
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
             // VALIDATION
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
 
             await ValidateProductName(
                 dto.NameEn,
@@ -843,19 +805,17 @@ namespace PharmacyAPI.Services
                 dto.Variants,
                 cancellationToken);
 
-
             var uploadedImageUrls =
                 new List<string>();
 
             var imagesToDelete =
                 new List<string>();
 
-
             try
             {
-                // ----------------------------------------------------
-                // BASIC DATA
-                // ----------------------------------------------------
+                // --------------------------------------------------------
+                // UPDATE BASIC DATA
+                // --------------------------------------------------------
 
                 product.NameEn =
                     dto.NameEn;
@@ -887,10 +847,9 @@ namespace PharmacyAPI.Services
                 product.IsInStock =
                     dto.IsInStock;
 
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // IMAGES
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 await UpdateImages(
                     product,
@@ -899,47 +858,44 @@ namespace PharmacyAPI.Services
                     imagesToDelete,
                     cancellationToken);
 
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // VARIANTS
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 UpdateVariants(
                     product,
                     dto.Variants);
 
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // SAVE
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
                 await _context.SaveChangesAsync(
                     cancellationToken);
 
-
-                // ----------------------------------------------------
+                // --------------------------------------------------------
                 // DELETE OLD FILES ONLY AFTER DB SUCCESS
-                // ----------------------------------------------------
+                // --------------------------------------------------------
 
-                DeleteUploadedImages(
-                    imagesToDelete.Distinct(
-                        StringComparer.OrdinalIgnoreCase));
-
+                if (imagesToDelete.Count > 0)
+                {
+                    DeleteUploadedImages(
+                        imagesToDelete.Distinct(
+                            StringComparer.OrdinalIgnoreCase));
+                }
 
                 return true;
             }
             catch
             {
-                // New files are safe to delete.
-                // Existing files remain untouched.
+                // New uploads can safely be deleted.
+                // Existing images are preserved.
                 DeleteUploadedImages(
                     uploadedImageUrls);
 
                 throw;
             }
         }
-
-
         // ============================================================
         // UPDATE VARIANTS
         // ============================================================
@@ -1046,47 +1002,63 @@ namespace PharmacyAPI.Services
         // ============================================================
 
         private async Task AddNewImages(
-            Product product,
-            List<ProductImageDto>? images,
-            List<string> uploadedImageUrls,
-            CancellationToken cancellationToken)
+    Product product,
+    List<ProductImageDto>? images,
+    List<string> uploadedImageUrls,
+    CancellationToken cancellationToken)
         {
-            if (images == null ||
-                images.Count == 0)
-            {
+            if (images == null || images.Count == 0)
                 return;
-            }
 
+            var imageDtos =
+                images
+                    .Where(i => i.Image != null)
+                    .OrderBy(i => i.SortOrder)
+                    .ToList();
 
-            var sortOrder = 0;
+            if (imageDtos.Count == 0)
+                return;
 
+            // ------------------------------------------------------------
+            // UPLOAD IN PARALLEL
+            // ------------------------------------------------------------
 
-            foreach (var imageDto in images
-                         .OrderBy(i => i.SortOrder))
+            var uploadTasks =
+                imageDtos.Select(async imageDto =>
+                {
+                    var imageUrl =
+                        await _imageService.SaveImageAsync(
+                            imageDto.Image!,
+                            "products",
+                            cancellationToken);
+
+                    return new
+                    {
+                        imageDto.SortOrder,
+                        ImageUrl = imageUrl
+                    };
+                });
+
+            var uploaded =
+                await Task.WhenAll(uploadTasks);
+
+            // ------------------------------------------------------------
+            // ADD TO EF GRAPH
+            // ------------------------------------------------------------
+
+            foreach (var item in uploaded.OrderBy(x => x.SortOrder))
             {
-                if (imageDto.Image == null)
-                    continue;
-
-
-                var imageUrl =
-                    await _imageService.SaveImageAsync(
-                        imageDto.Image,
-                        "products",
-                        cancellationToken);
-
-
                 uploadedImageUrls.Add(
-                    imageUrl);
-
+                    item.ImageUrl);
 
                 product.Images.Add(
                     new ProductImage
                     {
                         ImageUrl =
-                            imageUrl,
+                            item.ImageUrl,
 
                         SortOrder =
-                            sortOrder++
+                            item.SortOrder
                     });
             }
         }
@@ -1097,18 +1069,17 @@ namespace PharmacyAPI.Services
         // ============================================================
 
         private async Task UpdateImages(
-            Product product,
-            List<ProductImageDto>? requestedImages,
-            List<string> uploadedImageUrls,
-            List<string> imagesToDelete,
-            CancellationToken cancellationToken)
+    Product product,
+    List<ProductImageDto>? requestedImages,
+    List<string> uploadedImageUrls,
+    List<string> imagesToDelete,
+    CancellationToken cancellationToken)
         {
             requestedImages ??= [];
 
-
-            // --------------------------------------------------------
-            // Existing requested image IDs.
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
+            // EXISTING IMAGE IDS
+            // ------------------------------------------------------------
 
             var existingImageIds =
                 requestedImages
@@ -1116,150 +1087,171 @@ namespace PharmacyAPI.Services
                     .Select(i => i.Id)
                     .ToHashSet();
 
-
-            // --------------------------------------------------------
-            // Create dictionary once.
-            //
-            // Avoid:
-            //
-            // product.Images.FirstOrDefault(...)
-            //
-            // inside every iteration.
-            // --------------------------------------------------------
-
             var existingImagesById =
                 product.Images
                     .Where(i => i.Id > 0)
                     .ToDictionary(i => i.Id);
 
+            // ------------------------------------------------------------
+            // REMOVE DELETED IMAGES
+            // ------------------------------------------------------------
 
-            // --------------------------------------------------------
-            // Remove images no longer requested.
-            // --------------------------------------------------------
-
-            var removedImages =
-                product.Images
-                    .Where(i =>
-                        i.Id > 0 &&
-                        !existingImageIds.Contains(i.Id))
-                    .ToList();
-
-
-            foreach (var image in removedImages)
+            foreach (var image in product.Images
+                         .Where(i =>
+                             i.Id > 0 &&
+                             !existingImageIds.Contains(i.Id))
+                         .ToList())
             {
                 if (!string.IsNullOrWhiteSpace(
-                    image.ImageUrl))
+                        image.ImageUrl))
                 {
                     imagesToDelete.Add(
                         image.ImageUrl);
                 }
 
-
-                _context.ProductImages.Remove(
-                    image);
+                _context.ProductImages.Remove(image);
             }
 
+            // ------------------------------------------------------------
+            // EXISTING + NEW IMAGES
+            // ------------------------------------------------------------
 
-            // --------------------------------------------------------
-            // Process requested images.
-            // --------------------------------------------------------
+            var uploadOperations =
+                new List<(
+                    ProductImageDto Dto,
+                    ProductImage? Existing
+                )>();
 
             foreach (var imageDto in requestedImages
                          .OrderBy(i => i.SortOrder))
             {
-                // ====================================================
+                // --------------------------------------------------------
                 // EXISTING IMAGE
-                // ====================================================
+                // --------------------------------------------------------
 
                 if (imageDto.Id > 0)
                 {
                     if (!existingImagesById.TryGetValue(
-                        imageDto.Id,
-                        out var existingImage))
+                            imageDto.Id,
+                            out var existingImage))
                     {
                         throw new KeyNotFoundException(
                             $"الصورة رقم {imageDto.Id} غير موجودة");
                     }
 
-
                     existingImage.SortOrder =
                         imageDto.SortOrder;
 
-
-                    // ------------------------------------------------
-                    // Replace physical image.
-                    // ------------------------------------------------
-
+                    // No new file = nothing to upload.
                     if (imageDto.Image != null)
                     {
-                        var newImageUrl =
-                            await _imageService.SaveImageAsync(
-                                imageDto.Image,
-                                "products",
-                                cancellationToken);
-
-
-                        uploadedImageUrls.Add(
-                            newImageUrl);
-
-
-                        if (!string.IsNullOrWhiteSpace(
-                            existingImage.ImageUrl))
-                        {
-                            imagesToDelete.Add(
-                                existingImage.ImageUrl);
-                        }
-
-
-                        existingImage.ImageUrl =
-                            newImageUrl;
+                        uploadOperations.Add(
+                            (
+                                imageDto,
+                                existingImage
+                            ));
                     }
-
 
                     continue;
                 }
 
-
-                // ====================================================
+                // --------------------------------------------------------
                 // NEW IMAGE
-                // ====================================================
+                // --------------------------------------------------------
 
                 if (imageDto.Image != null)
                 {
-                    var newImageUrl =
-                        await _imageService.SaveImageAsync(
-                            imageDto.Image,
-                            "products",
-                            cancellationToken);
+                    uploadOperations.Add(
+                        (
+                            imageDto,
+                            null
+                        ));
+                }
+            }
 
+            // ------------------------------------------------------------
+            // UPLOAD NEW / REPLACED IMAGES IN PARALLEL
+            // ------------------------------------------------------------
 
+            if (uploadOperations.Count > 0)
+            {
+                var uploadTasks =
+                    uploadOperations.Select(async operation =>
+                    {
+                        var imageUrl =
+                            await _imageService.SaveImageAsync(
+                                operation.Dto.Image!,
+                                "products",
+                                cancellationToken);
+
+                        return new
+                        {
+                            operation.Dto,
+                            operation.Existing,
+                            ImageUrl = imageUrl
+                        };
+                    });
+
+                var uploaded =
+                    await Task.WhenAll(uploadTasks);
+
+                // --------------------------------------------------------
+                // APPLY UPLOAD RESULTS
+                // --------------------------------------------------------
+
+                foreach (var item in uploaded
+                             .OrderBy(x => x.Dto.SortOrder))
+                {
                     uploadedImageUrls.Add(
-                        newImageUrl);
+                        item.ImageUrl);
 
+                    // ----------------------------------------------------
+                    // REPLACE EXISTING
+                    // ----------------------------------------------------
+
+                    if (item.Existing != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(
+                                item.Existing.ImageUrl))
+                        {
+                            imagesToDelete.Add(
+                                item.Existing.ImageUrl);
+                        }
+
+                        item.Existing.ImageUrl =
+                            item.ImageUrl;
+
+                        item.Existing.SortOrder =
+                            item.Dto.SortOrder;
+
+                        continue;
+                    }
+
+                    // ----------------------------------------------------
+                    // ADD NEW
+                    // ----------------------------------------------------
 
                     product.Images.Add(
                         new ProductImage
                         {
                             ImageUrl =
-                                newImageUrl,
+                                item.ImageUrl,
 
                             SortOrder =
-                                imageDto.SortOrder
+                                item.Dto.SortOrder
                         });
                 }
             }
 
-
-            // --------------------------------------------------------
-            // Normalize SortOrder.
-            // --------------------------------------------------------
+            // ------------------------------------------------------------
+            // NORMALIZE SORT ORDER
+            // ------------------------------------------------------------
 
             var orderedImages =
                 product.Images
                     .OrderBy(i => i.SortOrder)
                     .ThenBy(i => i.Id)
                     .ToList();
-
 
             for (var i = 0;
                  i < orderedImages.Count;

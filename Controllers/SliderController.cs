@@ -32,10 +32,16 @@ namespace PharmacyAPI.Controllers
             GetSliders(
                 CancellationToken cancellationToken)
         {
+            try { 
             var categories = await _sliderService
                 .GetSliders(cancellationToken);
 
             return Ok(categories);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 

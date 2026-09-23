@@ -294,13 +294,7 @@ namespace PharmacyAPI.Data
                 });
             });
             ///=====================product index ==================
-            modelBuilder.Entity<Product>()
-    .HasIndex(p => new
-    {
-        p.IsDeleted,
-        p.CategoryId,
-        p.Id
-    });
+
             modelBuilder.Entity<Product>()
     .HasIndex(p => new
     {

@@ -26,9 +26,15 @@ namespace PharmacyAPI.Controllers
         public async Task<ActionResult<List<SizeDto>>> GetSizes(
             CancellationToken cancellationToken)
         {
+            try { 
             var sizes = await _sizeService.GetSizes(cancellationToken);
 
             return Ok(sizes);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -42,6 +48,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var size = await _sizeService.GetSize(
                 id,
                 cancellationToken);
@@ -50,6 +57,11 @@ namespace PharmacyAPI.Controllers
                 return NotFound();
 
             return Ok(size);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 

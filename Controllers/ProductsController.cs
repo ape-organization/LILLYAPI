@@ -32,6 +32,7 @@ namespace PharmacyAPI.Controllers
             [FromQuery] int count = 10,
             CancellationToken cancellationToken = default)
         {
+            try { 
             if (count <= 0)
             {
                 count = 10;
@@ -43,6 +44,11 @@ namespace PharmacyAPI.Controllers
                     cancellationToken);
 
             return Ok(products);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -70,6 +76,7 @@ namespace PharmacyAPI.Controllers
             [FromQuery] bool? offers = null,
             CancellationToken cancellationToken = default)
         {
+            try { 
             if (page < 1)
             {
                 page = 1;
@@ -83,6 +90,11 @@ namespace PharmacyAPI.Controllers
                     cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         [HttpGet("admin")]
@@ -93,6 +105,7 @@ namespace PharmacyAPI.Controllers
             [FromQuery] bool? offers = null,
             CancellationToken cancellationToken = default)
         {
+            try { 
             if (page < 1)
             {
                 page = 1;
@@ -106,6 +119,11 @@ namespace PharmacyAPI.Controllers
                     cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -118,12 +136,17 @@ namespace PharmacyAPI.Controllers
       
             CancellationToken cancellationToken = default)
         {
-           
+            try { 
 
             var result =
                 await _productService.GetNewArrivalProducts(cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         //===========================================
@@ -135,12 +158,17 @@ namespace PharmacyAPI.Controllers
 
             CancellationToken cancellationToken = default)
         {
-
+            try { 
 
             var result =
                 await _productService.getProductsbyCategory(id,productId, cancellationToken);
 
             return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -158,6 +186,7 @@ namespace PharmacyAPI.Controllers
             [FromBody] GetProductsByIdsRequest request,
             CancellationToken cancellationToken)
         {
+            try { 
             if (request?.ProductIds is null ||
                 request.ProductIds.Count == 0)
             {
@@ -173,6 +202,11 @@ namespace PharmacyAPI.Controllers
 
 
             return Ok(products);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -187,11 +221,17 @@ namespace PharmacyAPI.Controllers
             GetDiscountedProducts(
                 CancellationToken cancellationToken)
         {
+            try { 
             var products =
                 await _productService.GetDiscountedProducts(
                     cancellationToken);
 
             return Ok(products);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -206,6 +246,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var product =
                 await _productService.GetProduct(
                     id,
@@ -222,6 +263,11 @@ namespace PharmacyAPI.Controllers
 
 
             return Ok(product);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -329,6 +375,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var product =
                 await _productService.RemoveDiscount(
                     id,
@@ -345,6 +392,11 @@ namespace PharmacyAPI.Controllers
 
 
             return Ok(product);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -358,6 +410,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var deleted =
                 await _productService.DeleteProduct(
                     id,
@@ -374,6 +427,11 @@ namespace PharmacyAPI.Controllers
 
 
             return NoContent();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -388,6 +446,7 @@ namespace PharmacyAPI.Controllers
             [FromQuery] string name,
             CancellationToken cancellationToken)
         {
+            try { 
             if (string.IsNullOrWhiteSpace(name))
             {
                 return BadRequest(new
@@ -404,6 +463,11 @@ namespace PharmacyAPI.Controllers
 
 
             return Ok(products);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -417,6 +481,7 @@ namespace PharmacyAPI.Controllers
             [FromQuery] string name,
             CancellationToken cancellationToken)
         {
+            try { 
             if (string.IsNullOrWhiteSpace(name))
             {
                 return BadRequest(new
@@ -436,6 +501,11 @@ namespace PharmacyAPI.Controllers
             {
                 exists
             });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
     }
 }

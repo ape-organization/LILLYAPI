@@ -26,10 +26,16 @@ namespace PharmacyAPI.Controllers
         public async Task<ActionResult<List<HeelSizeDto>>> GetHeelSizes(
             CancellationToken cancellationToken)
         {
+            try { 
             var heelSizes = await _heelSizeService
                 .GetHeelSizes(cancellationToken);
 
             return Ok(heelSizes);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -43,6 +49,7 @@ namespace PharmacyAPI.Controllers
             int id,
             CancellationToken cancellationToken)
         {
+            try { 
             var heelSize = await _heelSizeService
                 .GetHeelSize(id, cancellationToken);
 
@@ -50,6 +57,11 @@ namespace PharmacyAPI.Controllers
                 return NotFound();
 
             return Ok(heelSize);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 

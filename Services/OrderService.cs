@@ -19,7 +19,7 @@ namespace PharmacyAPI.Services
             CancellationToken cancellationToken = default);
         Task<PagedResponse<OrderDto>> GetOrders(
                int page = 1,
-               int pageSize = 30,
+               int pageSize = 100,
                CancellationToken cancellationToken = default);
 
         Task<List<OrderDto>> GetOrdersByClient(
@@ -530,7 +530,7 @@ namespace PharmacyAPI.Services
         // GET ALL ORDERS
         // =====================================================
 
-        public async Task<PagedResponse<OrderDto>> GetOrders(int page = 1, int pageSize = 30,
+        public async Task<PagedResponse<OrderDto>> GetOrders(int page = 1, int pageSize = 100,
                  CancellationToken cancellationToken = default)
         {
             page = Math.Max(page, 1);

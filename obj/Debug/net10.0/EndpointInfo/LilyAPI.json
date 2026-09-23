@@ -578,7 +578,7 @@
             "schema": {
               "type": "integer",
               "format": "int32",
-              "default": 30
+              "default": 100
             }
           }
         ],

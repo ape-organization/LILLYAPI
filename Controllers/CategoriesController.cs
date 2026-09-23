@@ -31,10 +31,17 @@ namespace PharmacyAPI.Controllers
             GetCategoriesForMenu(
                 CancellationToken cancellationToken)
         {
-            var categories = await _categoryService
-                .GetCategoriesForMenu(cancellationToken);
+            try
+            {
+                var categories = await _categoryService
+                    .GetCategoriesForMenu(cancellationToken);
 
-            return Ok(categories);
+                return Ok(categories);
+            }
+            catch(Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -48,10 +55,16 @@ namespace PharmacyAPI.Controllers
             GetCategories(
                 CancellationToken cancellationToken)
         {
+            try { 
             var categories = await _categoryService
                 .GetCategories(cancellationToken);
 
             return Ok(categories);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
@@ -65,6 +78,7 @@ namespace PharmacyAPI.Controllers
                 int id,
                 CancellationToken cancellationToken)
         {
+            try { 
             var category = await _categoryService
                 .GetCategory(
                     id,
@@ -76,6 +90,11 @@ namespace PharmacyAPI.Controllers
 
 
             return Ok(category);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 

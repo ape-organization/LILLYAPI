@@ -20,11 +20,17 @@ public class WebsiteVisitsController : ControllerBase
         [FromBody] WebsiteVisitDto request,
         CancellationToken cancellationToken)
     {
+        try { 
         await _service.RecordVisit(
             request.VisitorId,
             cancellationToken);
 
         return Ok();
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
     }
 
     [HttpGet("monthly")]
@@ -33,8 +39,14 @@ public class WebsiteVisitsController : ControllerBase
         [FromQuery] int months = 12,
         CancellationToken cancellationToken = default)
     {
+        try { 
         var result = await _service.GetCurrentMonthVisitors( cancellationToken);
 
         return Ok(result);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
     }
 }

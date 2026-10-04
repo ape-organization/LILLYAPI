@@ -16,6 +16,7 @@
           "Microsoft.EntityFrameworkCore": "10.0.3",
           "Microsoft.EntityFrameworkCore.Design": "10.0.3",
           "Microsoft.EntityFrameworkCore.SqlServer": "10.0.3",
+          "SixLabors.ImageSharp": "4.1.2",
           "Swashbuckle.AspNetCore": "6.5.0",
           "prometheus-net.AspNetCore": "8.2.1"
         },
@@ -745,6 +746,17 @@
           }
         }
       },
+      "SixLabors.ImageSharp/4.1.2": {
+        "dependencies": {
+          "System.IO.Hashing": "8.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/SixLabors.ImageSharp.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.1.2.0"
+          }
+        }
+      },
       "Swashbuckle.AspNetCore/6.5.0": {
         "dependencies": {
           "Swashbuckle.AspNetCore.Swagger": "6.5.0",
@@ -881,6 +893,14 @@
           "lib/net9.0/System.IdentityModel.Tokens.Jwt.dll": {
             "assemblyVersion": "8.0.1.0",
             "fileVersion": "8.0.1.50722"
+          }
+        }
+      },
+      "System.IO.Hashing/8.0.0": {
+        "runtime": {
+          "lib/net8.0/System.IO.Hashing.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.23.53103"
           }
         }
       },
@@ -1202,6 +1222,13 @@
       "path": "qrcoder/1.4.3",
       "hashPath": "qrcoder.1.4.3.nupkg.sha512"
     },
+    "SixLabors.ImageSharp/4.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AQ0oouhH/6qmXJC70/k50iVt7SiZRjCgd4tXXiC5ZrB5CvyBwA81HTqb5twcXz8CvTAFxUNV0TAcL83OhyRA1g==",
+      "path": "sixlabors.imagesharp/4.1.2",
+      "hashPath": "sixlabors.imagesharp.4.1.2.nupkg.sha512"
+    },
     "Swashbuckle.AspNetCore/6.5.0": {
       "type": "package",
       "serviceable": true,
@@ -1299,6 +1326,13 @@
       "sha512": "sha512-GJw3bYkWpOgvN3tJo5X4lYUeIFA2HD293FPUhKmp7qxS+g5ywAb34Dnd3cDAFLkcMohy5XTpoaZ4uAHuw0uSPQ==",
       "path": "system.identitymodel.tokens.jwt/8.0.1",
       "hashPath": "system.identitymodel.tokens.jwt.8.0.1.nupkg.sha512"
+    },
+    "System.IO.Hashing/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA==",
+      "path": "system.io.hashing/8.0.0",
+      "hashPath": "system.io.hashing.8.0.0.nupkg.sha512"
     },
     "System.Memory.Data/8.0.1": {
       "type": "package",

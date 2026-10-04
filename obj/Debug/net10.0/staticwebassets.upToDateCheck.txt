@@ -114,3 +114,9 @@ wwwroot\uploads\LILLY\products\3c576f5a9ed447949d6eb038045a1ccd.jpg
 wwwroot\uploads\LILLY\products\5cfc8d186e654b4296609910f435b0fb.jpg
 wwwroot\uploads\LILLY\products\6708e6f27d324dc788a904f5056d6867.png
 wwwroot\uploads\LILLY\products\c8323a341a2246a98499edb2dd8e6c0e.jpg
+wwwroot\uploads\LILLY\categories\d1a4afa6488f465fb6e92477e9a465b8.png
+wwwroot\uploads\LILLY\categories\2af061eaa8784ca196e1546d170cc4c7.webp
+wwwroot\uploads\LILLY\categories\7b5f7c156afd4eec913fe045460aa4e0.webp
+wwwroot\uploads\LILLY\categories\f0454306d03548c4bba388033303a65d.webp
+wwwroot\uploads\LILLY\sliders\5808fd44c9e44e7786b2f01e36c9966c.webp
+wwwroot\uploads\LILLY\sliders\713e1a9a42fd4cbbbf1866c0195199a3.webp

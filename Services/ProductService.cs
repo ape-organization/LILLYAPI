@@ -306,19 +306,7 @@ namespace PharmacyAPI.Services
             var skip =
                 (page - 1) * PageSize;
 
-            // --------------------------------------------------------
-            // IMPORTANT:
-            //
-            // MapProduct is intentionally used instead of
-            // MapAllProduct for list requests.
-            //
-            // List pages do not need:
-            // - DescriptionEn
-            // - DescriptionAr
-            // - Category object
-            //
-            // This reduces SQL/result payload.
-            // --------------------------------------------------------
+           
 
             var products = await query
                .OrderByDescending(p => p.CreatedAt)
@@ -512,7 +500,7 @@ namespace PharmacyAPI.Services
 
                     Price = p.Price,
 
-                    ActualPrice = p.ActualPrice,
+                    ActualPrice =0,
 
                     DiscountPercentage =
                         p.DiscountPercentage,
@@ -625,9 +613,9 @@ namespace PharmacyAPI.Services
                 DescriptionAr = dto.DescriptionAr,
 
                 Price = dto.Price,
-                ActualPrice = dto.ActualPrice,
+                ActualPrice = 0,
 
-                StockQuantity = dto.StockQuantity,
+                StockQuantity = 5,
 
                 DiscountPercentage =
                     dto.DiscountPercentage,
@@ -671,8 +659,7 @@ namespace PharmacyAPI.Services
                                 HeelSizeId =
                                     variantDto.HeelSizeId,
 
-                                StockQuantity =
-                                    variantDto.StockQuantity,
+                                StockQuantity =5,
 
                                 IsActive = true
                             });
@@ -714,8 +701,7 @@ namespace PharmacyAPI.Services
 
                 dto.Id = product.Id;
 
-                dto.StockQuantity =
-                    product.StockQuantity;
+                dto.StockQuantity =5;
 
                 dto.IsInStock =
                     product.IsInStock;
@@ -832,11 +818,9 @@ namespace PharmacyAPI.Services
                 product.Price =
                     dto.Price;
 
-                product.ActualPrice =
-                    dto.ActualPrice;
+                product.ActualPrice = 0;
 
-                product.StockQuantity =
-                    dto.StockQuantity;
+                product.StockQuantity =5;
 
                 product.DiscountPercentage =
                     dto.DiscountPercentage;
@@ -1367,9 +1351,9 @@ namespace PharmacyAPI.Services
 
                 Price = p.Price,
 
-                ActualPrice = p.ActualPrice,
+                ActualPrice =0,
 
-                StockQuantity = p.StockQuantity,
+                StockQuantity =5,
 
                 IsInStock = p.IsInStock,
 
@@ -1428,11 +1412,9 @@ namespace PharmacyAPI.Services
                 Price =
                     p.Price,
 
-                ActualPrice =
-                    p.ActualPrice,
+                ActualPrice =0,
 
-                StockQuantity =
-                    p.StockQuantity,
+                StockQuantity =5,
 
                 IsInStock =
                     p.IsInStock,
@@ -1599,17 +1581,17 @@ namespace PharmacyAPI.Services
                     "السعر لا يمكن ان يكون بالسالب");
             }
 
-            if (dto.ActualPrice < 0)
-            {
-                throw new InvalidOperationException(
-                    "السعر الفعلي لا يمكن ان يكون بالسالب");
-            }
+            //if (dto.ActualPrice < 0)
+            //{
+            //    throw new InvalidOperationException(
+            //        "السعر الفعلي لا يمكن ان يكون بالسالب");
+            //}
 
-            if (dto.StockQuantity < 0)
-            {
-                throw new InvalidOperationException(
-                    "الكميه لا يمكن ان تكون اقل من الصفر");
-            }
+            //if (dto.StockQuantity < 0)
+            //{
+            //    throw new InvalidOperationException(
+            //        "الكميه لا يمكن ان تكون اقل من الصفر");
+            //}
 
             if (dto.DiscountPercentage < 0 ||
                 dto.DiscountPercentage > 100)
@@ -1627,11 +1609,11 @@ namespace PharmacyAPI.Services
                 );
 
 
-            if (dto.ActualPrice > discountedPrice)
-            {
-                throw new InvalidOperationException(
-                    "السعر الفعلي يجب ان يكون اقل من السعر بعد الخصم");
-            }
+            //if (dto.ActualPrice > discountedPrice)
+            //{
+            //    throw new InvalidOperationException(
+            //        "السعر الفعلي يجب ان يكون اقل من السعر بعد الخصم");
+            //}
         }
 
 
@@ -1660,17 +1642,17 @@ namespace PharmacyAPI.Services
                     "السعر لا يمكن ان يكون بالسالب");
             }
 
-            if (dto.ActualPrice < 0)
-            {
-                throw new InvalidOperationException(
-                    "السعر الفعلي لا يمكن ان يكون بالسالب");
-            }
+            //if (dto.ActualPrice < 0)
+            //{
+            //    throw new InvalidOperationException(
+            //        "السعر الفعلي لا يمكن ان يكون بالسالب");
+            //}
 
-            if (dto.StockQuantity < 0)
-            {
-                throw new InvalidOperationException(
-                    "الكميه لا يمكن ان تكون اقل من الصفر");
-            }
+            //if (dto.StockQuantity < 0)
+            //{
+            //    throw new InvalidOperationException(
+            //        "الكميه لا يمكن ان تكون اقل من الصفر");
+            //}
 
             if (dto.DiscountPercentage < 0 ||
                 dto.DiscountPercentage > 100)
@@ -1688,11 +1670,11 @@ namespace PharmacyAPI.Services
                 );
 
 
-            if (dto.ActualPrice > discountedPrice)
-            {
-                throw new InvalidOperationException(
-                    "السعر الفعلي يجب ان يكون اقل من السعر بعد الخصم");
-            }
+            //if (dto.ActualPrice > discountedPrice)
+            //{
+            //    throw new InvalidOperationException(
+            //        "السعر الفعلي يجب ان يكون اقل من السعر بعد الخصم");
+            //}
         }
 
 
@@ -1724,11 +1706,11 @@ namespace PharmacyAPI.Services
                         "كل منتج فرعي يجب ان يحتوي على مقاس او مقاس كعب");
                 }
 
-                if (variant.StockQuantity < 0)
-                {
-                    throw new InvalidOperationException(
-                        "كميه المخزون لا يمكن ان تكون اقل من الصفر");
-                }
+                //if (variant.StockQuantity < 0)
+                //{
+                //    throw new InvalidOperationException(
+                //        "كميه المخزون لا يمكن ان تكون اقل من الصفر");
+                //}
             }
 
 

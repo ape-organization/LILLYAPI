@@ -18,7 +18,7 @@ namespace PharmacyAPI.Services
             CreateCategoryRequest dto,
             CancellationToken cancellationToken = default);
 
-        Task<List<CategoryMenu>> GetCategoriesForMenu(
+        Task<List<Category>> GetCategoriesForMenu(
             CancellationToken cancellationToken = default);
 
         Task UpdateCategory(
@@ -54,18 +54,12 @@ namespace PharmacyAPI.Services
         // GET CATEGORIES FOR MENU
         // =====================================================
 
-        public async Task<List<CategoryMenu>> GetCategoriesForMenu(
+        public async Task<List<Category>> GetCategoriesForMenu(
             CancellationToken cancellationToken = default)
         {
             return await _context.Categories
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                .Select(c => new CategoryMenu
-                {
-                    Id = c.Id,
-                    NameEn = c.NameEn,
-                    NameAr = c.NameAr
-                })
                 .ToListAsync(cancellationToken);
         }
 
@@ -129,6 +123,7 @@ namespace PharmacyAPI.Services
             }
 
 
+
             // -------------------------------------------------
             // CHECK DUPLICATE NAME
             // -------------------------------------------------
@@ -138,8 +133,8 @@ namespace PharmacyAPI.Services
                     c =>
                         !c.IsDeleted &&
                         (
-                            c.NameEn == dto.NameEn ||
-                            c.NameAr == dto.NameAr
+                            c.NameEn == dto.NameEn.Trim() ||
+                            c.NameAr == dto.NameAr.Trim()
                         ),
                     cancellationToken);
 

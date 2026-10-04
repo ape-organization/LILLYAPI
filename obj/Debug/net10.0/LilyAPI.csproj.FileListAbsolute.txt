@@ -171,3 +171,5 @@ D:\GitHub\LILLYAPI\obj\Debug\net10.0\refint\LilyAPI.dll
 D:\GitHub\LILLYAPI\obj\Debug\net10.0\LilyAPI.pdb
 D:\GitHub\LILLYAPI\obj\Debug\net10.0\LilyAPI.genruntimeconfig.cache
 D:\GitHub\LILLYAPI\obj\Debug\net10.0\ref\LilyAPI.dll
+D:\GitHub\LILLYAPI\bin\Debug\net10.0\SixLabors.ImageSharp.dll
+D:\GitHub\LILLYAPI\bin\Debug\net10.0\System.IO.Hashing.dll

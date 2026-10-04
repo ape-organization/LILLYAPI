@@ -1,8 +1,5 @@
-﻿
-using Microsoft.AspNetCore.Http;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
+﻿using Microsoft.AspNetCore.Http;
+using ImageMagick;
 
 namespace PharmacyAPI.Services;
 
@@ -32,8 +29,10 @@ public sealed class ImageService
                 ?? "/var/www/uploads/LILLY");
 
         _uploadUrlPrefix =
-            (configuration["FileStorage:UploadUrlPrefix"]
-             ?? "/uploads/LILLY/").TrimEnd('/');
+            (
+                configuration["FileStorage:UploadUrlPrefix"]
+                ?? "/uploads/LILLY/"
+            ).TrimEnd('/');
     }
 
     // ============================================================
@@ -54,8 +53,10 @@ public sealed class ImageService
         var extension =
             Path.GetExtension(image.FileName);
 
-        if (string.IsNullOrWhiteSpace(extension) ||
-            !AllowedExtensions.Contains(extension))
+        if (
+            string.IsNullOrWhiteSpace(extension) ||
+            !AllowedExtensions.Contains(extension)
+        )
         {
             throw new ArgumentException(
                 "نوع الصورة غير متوافر");
@@ -65,12 +66,17 @@ public sealed class ImageService
 
         var folderPath =
             Path.GetFullPath(
-                Path.Combine(_uploadPath, folder));
+                Path.Combine(
+                    _uploadPath,
+                    folder));
 
         // Ensure the destination stays inside upload root.
-        if (!folderPath.StartsWith(
-                _uploadPath + Path.DirectorySeparatorChar,
-                StringComparison.Ordinal))
+        if (
+            !folderPath.StartsWith(
+                _uploadPath +
+                Path.DirectorySeparatorChar,
+                StringComparison.Ordinal)
+        )
         {
             throw new ArgumentException(
                 "مجلد الصورة غير صالح");
@@ -78,71 +84,82 @@ public sealed class ImageService
 
         Directory.CreateDirectory(folderPath);
 
-        var fileName = $"{Guid.NewGuid():N}.webp";
+        var fileName =
+            $"{Guid.NewGuid():N}.webp";
 
         var filePath =
-            Path.Combine(folderPath, fileName);
+            Path.Combine(
+                folderPath,
+                fileName);
 
         try
         {
-            // Decode uploaded image.
             await using var inputStream =
                 image.OpenReadStream();
 
-            using var decodedImage =
-                await Image.LoadAsync(
-                    inputStream,
-                    cancellationToken);
+            // ====================================================
+            // LOAD IMAGE
+            // ====================================================
+
+            using var magickImage =
+                new MagickImage();
+
+            await magickImage.ReadAsync(
+                inputStream,
+                cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Correct orientation from EXIF metadata.
-            decodedImage.Mutate(x => x.AutoOrient());
+            // ====================================================
+            // AUTO ORIENT
+            // ====================================================
 
-            // Resize only if either dimension exceeds the limit.
-            if (decodedImage.Width > MaxImageDimension ||
-                decodedImage.Height > MaxImageDimension)
+            magickImage.AutoOrient();
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // ====================================================
+            // RESIZE
+            // ====================================================
+
+            if (
+                magickImage.Width > MaxImageDimension ||
+                magickImage.Height > MaxImageDimension
+            )
             {
-                decodedImage.Mutate(x => x.Resize(
-                    new ResizeOptions
+                magickImage.Resize(
+                    new MagickGeometry(
+                        MaxImageDimension,
+                        MaxImageDimension)
                     {
-                        Size = new Size(
-                            MaxImageDimension,
-                            MaxImageDimension),
-                        Mode = ResizeMode.Max,
-                        Sampler = KnownResamplers.Lanczos3
-                    }));
+                        IgnoreAspectRatio = false
+                    });
             }
 
-            // Save compressed WebP.
-            var encoder = new WebpEncoder
-            {
-                Quality = WebpQuality
-            };
+            cancellationToken.ThrowIfCancellationRequested();
 
-            await using var outputStream =
-                new FileStream(
-                    filePath,
-                    new FileStreamOptions
-                    {
-                        Mode = FileMode.CreateNew,
-                        Access = FileAccess.Write,
-                        Share = FileShare.None,
-                        BufferSize = 128 * 1024,
-                        Options =
-                            FileOptions.Asynchronous |
-                            FileOptions.SequentialScan
-                    });
+            // ====================================================
+            // WEBP
+            // ====================================================
 
-            await decodedImage.SaveAsWebpAsync(
-                outputStream,
-                encoder,
+            magickImage.Format =
+                MagickFormat.WebP;
+
+            magickImage.Quality =
+                WebpQuality;
+
+            // ====================================================
+            // SAVE
+            // ====================================================
+
+            await magickImage.WriteAsync(
+                filePath,
                 cancellationToken);
 
-            await outputStream.FlushAsync(
-                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            return $"{_uploadUrlPrefix}/{folder}/{fileName}";
+            return
+                $"{_uploadUrlPrefix}/{folder}/{fileName}";
         }
         catch
         {
@@ -165,25 +182,33 @@ public sealed class ImageService
     // DELETE IMAGE
     // ============================================================
 
-    public Task DeleteImageAsync(string? imageUrl)
+    public Task DeleteImageAsync(
+        string? imageUrl)
     {
         if (string.IsNullOrWhiteSpace(imageUrl))
             return Task.CompletedTask;
 
         try
         {
-            var relativePath = GetRelativePath(imageUrl);
+            var relativePath =
+                GetRelativePath(imageUrl);
 
             if (relativePath is null)
                 return Task.CompletedTask;
 
-            var filePath = Path.GetFullPath(
-                Path.Combine(_uploadPath, relativePath));
+            var filePath =
+                Path.GetFullPath(
+                    Path.Combine(
+                        _uploadPath,
+                        relativePath));
 
-            // Prevent deleting files outside the upload root.
-            if (!filePath.StartsWith(
-                    _uploadPath + Path.DirectorySeparatorChar,
-                    StringComparison.Ordinal))
+            // Prevent deleting files outside upload root.
+            if (
+                !filePath.StartsWith(
+                    _uploadPath +
+                    Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal)
+            )
             {
                 return Task.CompletedTask;
             }
@@ -203,33 +228,42 @@ public sealed class ImageService
     // GET RELATIVE PATH
     // ============================================================
 
-    private string? GetRelativePath(string imageUrl)
+    private string? GetRelativePath(
+        string imageUrl)
     {
-        var value = imageUrl.Trim();
+        var value =
+            imageUrl.Trim();
 
-        var prefix = _uploadUrlPrefix + "/";
+        var prefix =
+            _uploadUrlPrefix + "/";
 
-        if (!value.StartsWith(
+        if (
+            !value.StartsWith(
                 prefix,
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase)
+        )
         {
             return null;
         }
 
-        var relativePath = value[prefix.Length..];
+        var relativePath =
+            value[prefix.Length..];
 
         if (string.IsNullOrWhiteSpace(relativePath))
             return null;
 
-        relativePath = relativePath.Replace(
-            '/',
-            Path.DirectorySeparatorChar);
+        relativePath =
+            relativePath.Replace(
+                '/',
+                Path.DirectorySeparatorChar);
 
-        if (Path.IsPathRooted(relativePath) ||
-            relativePath.Split(
-                Path.DirectorySeparatorChar)
+        if (
+            Path.IsPathRooted(relativePath) ||
+            relativePath
+                .Split(Path.DirectorySeparatorChar)
                 .Any(segment =>
-                    segment is "." or ".."))
+                    segment is "." or "..")
+        )
         {
             return null;
         }
@@ -241,27 +275,37 @@ public sealed class ImageService
     // SANITIZE FOLDER
     // ============================================================
 
-    private static string SanitizeFolder(string folder)
+    private static string SanitizeFolder(
+        string folder)
     {
-        folder = folder.Trim();
+        folder =
+            folder.Trim();
 
-        if (Path.IsPathRooted(folder) ||
-            folder.Contains(':'))
+        if (
+            Path.IsPathRooted(folder) ||
+            folder.Contains(':')
+        )
         {
             throw new ArgumentException(
                 "مجلد الصورة غير صالح");
         }
 
-        folder = folder.Replace('\\', '/').Trim('/');
+        folder =
+            folder
+                .Replace('\\', '/')
+                .Trim('/');
 
-        var segments = folder.Split('/');
+        var segments =
+            folder.Split('/');
 
-        if (segments.Length == 0 ||
+        if (
+            segments.Length == 0 ||
             segments.Any(segment =>
                 string.IsNullOrWhiteSpace(segment) ||
                 segment is "." or ".." ||
                 segment.IndexOfAny(
-                    Path.GetInvalidFileNameChars()) >= 0))
+                    Path.GetInvalidFileNameChars()) >= 0)
+        )
         {
             throw new ArgumentException(
                 "مجلد الصورة غير صالح");

@@ -384,6 +384,9 @@ namespace PharmacyAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -392,7 +395,8 @@ namespace PharmacyAPI.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
 
                     b.ToTable("HeelSizes");
                 });
@@ -425,11 +429,9 @@ namespace PharmacyAPI.Migrations
 
                     b.HasIndex("ApplicationUserId");
 
-                    b.HasIndex("ClientId");
+                    b.HasIndex("ClientId", "OrderDate");
 
-                    b.HasIndex("OrderDate");
-
-                    b.HasIndex("Status");
+                    b.HasIndex("OrderDate", "Id");
 
                     b.HasIndex("Status", "OrderDate");
 
@@ -471,8 +473,6 @@ namespace PharmacyAPI.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("ProductVariantId");
-
-                    b.HasIndex("OrderId", "ProductId");
 
                     b.ToTable("OrderItems");
                 });
@@ -534,11 +534,11 @@ namespace PharmacyAPI.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("IsDeleted");
-
                     b.HasIndex("NameEn");
 
-                    b.HasIndex("CategoryId", "IsDeleted");
+                    b.HasIndex("IsDeleted", "CategoryId", "Id");
+
+                    b.HasIndex("IsDeleted", "DiscountPercentage", "Id");
 
                     b.ToTable("Products");
                 });
@@ -596,8 +596,6 @@ namespace PharmacyAPI.Migrations
 
                     b.HasIndex("HeelSizeId");
 
-                    b.HasIndex("ProductId");
-
                     b.HasIndex("SizeId");
 
                     b.HasIndex("ProductId", "IsActive");
@@ -613,6 +611,9 @@ namespace PharmacyAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -621,7 +622,8 @@ namespace PharmacyAPI.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
 
                     b.ToTable("Sizes");
                 });

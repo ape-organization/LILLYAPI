@@ -12,11 +12,15 @@
 
         public decimal ActualPrice { get; set; }
 
+        public int StockQuantity { get; set; }
+
+        public decimal DiscountedPrice { get; set; }
+
         public decimal DiscountPercentage { get; set; }
 
         public bool IsInStock { get; set; }
 
-        public List<ProductImageResponseDto> Images { get; set; }
+        public List<string> Images { get; set; }
             = new();
     }
 }

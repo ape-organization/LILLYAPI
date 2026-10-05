@@ -180,3 +180,4 @@ D:\GitHub\LILLYAPI\bin\Debug\net10.0\runtimes\osx-x64\native\Magick.Native-Q8-x6
 D:\GitHub\LILLYAPI\bin\Debug\net10.0\runtimes\win-arm64\native\Magick.Native-Q8-arm64.dll
 D:\GitHub\LILLYAPI\bin\Debug\net10.0\runtimes\win-x64\native\Magick.Native-Q8-x64.dll
 D:\GitHub\LILLYAPI\bin\Debug\net10.0\runtimes\win-x86\native\Magick.Native-Q8-x86.dll
+D:\GitHub\LILLYAPI\obj\Debug\net10.0\staticwebassets.upToDateCheck.txt

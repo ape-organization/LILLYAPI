@@ -25,6 +25,8 @@
 
         public decimal DiscountPercentage { get; set; }
 
+        public decimal DiscountedPrice { get; set; }
+
         // =========================
         // CATEGORY
         // =========================
@@ -37,7 +39,7 @@
         // IMAGES
         // =========================
 
-        public List<ProductImageResponseDto> Images { get; set; }
+        public List<string> Images { get; set; }
             = new();
 
         // =========================

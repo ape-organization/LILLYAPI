@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PharmacyAPI.Models;
@@ -24,9 +24,11 @@ namespace PharmacyAPI.Data
         public DbSet<ProductImage> ProductImages { get; set; }
 
         public DbSet<ProductVariant> ProductVariants { get; set; }
-        // ==========================================================
-        // visitors
-        // ==========================================================
+
+        // ============================================================
+        // VISITORS
+        // ============================================================
+
         public DbSet<WebsiteVisit> websiteVisits { get; set; }
 
         // ============================================================
@@ -34,7 +36,6 @@ namespace PharmacyAPI.Data
         // ============================================================
 
         public DbSet<Category> Categories { get; set; }
-
 
         // ============================================================
         // SIZE MANAGEMENT
@@ -44,7 +45,6 @@ namespace PharmacyAPI.Data
 
         public DbSet<HeelSize> HeelSizes { get; set; }
 
-
         // ============================================================
         // ORDERS
         // ============================================================
@@ -53,29 +53,17 @@ namespace PharmacyAPI.Data
 
         public DbSet<OrderItem> OrderItems { get; set; }
 
-
-        //// ============================================================
-        //// CART
-        //// ============================================================
-
-        //public DbSet<Cart> Carts { get; set; }
-
-        //public DbSet<CartItem> CartItems { get; set; }
-
-
         // ============================================================
         // CLIENTS
         // ============================================================
 
         public DbSet<Client> Clients { get; set; }
 
-
         // ============================================================
         // SLIDERS
         // ============================================================
 
         public DbSet<Slider> Sliders { get; set; }
-
 
         // ============================================================
         // MODEL CONFIGURATION
@@ -85,7 +73,6 @@ namespace PharmacyAPI.Data
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
 
             // ========================================================
             // PRODUCT
@@ -127,9 +114,8 @@ namespace PharmacyAPI.Data
                 entity.Property(p => p.IsDeleted)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
-                // Product → Category
+                // Product -> Category
                 // ----------------------------------------------------
 
                 entity.HasOne(p => p.Category)
@@ -137,24 +123,34 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(p => p.CategoryId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // Indexes
+                // PRODUCT INDEXES
+                //
+                // These support the main catalog queries:
+                //
+                // !IsDeleted
+                // Category filtering
+                // Offers filtering
+                // Pagination by Id
                 // ----------------------------------------------------
-
-                entity.HasIndex(p => p.CategoryId);
-
-                entity.HasIndex(p => p.IsDeleted);
 
                 entity.HasIndex(p => new
                 {
+                    p.IsDeleted,
                     p.CategoryId,
-                    p.IsDeleted
+                    p.Id
                 });
 
+                entity.HasIndex(p => new
+                {
+                    p.IsDeleted,
+                    p.DiscountPercentage,
+                    p.Id
+                });
+
+                // Product name search / lookup.
                 entity.HasIndex(p => p.NameEn);
             });
-
 
             // ========================================================
             // CATEGORY
@@ -178,7 +174,6 @@ namespace PharmacyAPI.Data
                 entity.Property(c => c.IsDeleted)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
                 // Unique category name
                 // ----------------------------------------------------
@@ -186,9 +181,12 @@ namespace PharmacyAPI.Data
                 entity.HasIndex(c => c.NameEn)
                     .IsUnique();
 
+                // ----------------------------------------------------
+                // Category listing excluding deleted categories
+                // ----------------------------------------------------
+
                 entity.HasIndex(c => c.IsDeleted);
             });
-
 
             // ========================================================
             // PRODUCT IMAGE
@@ -205,9 +203,8 @@ namespace PharmacyAPI.Data
                 entity.Property(i => i.SortOrder)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
-                // Product → Images
+                // Product -> Images
                 // ----------------------------------------------------
 
                 entity.HasOne(i => i.Product)
@@ -215,13 +212,11 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(i => i.ProductId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-
                 // ----------------------------------------------------
                 // Important for:
                 //
                 // ORDER BY SortOrder
-                //
-                // and getting first product image
+                // First product image projection
                 // ----------------------------------------------------
 
                 entity.HasIndex(i => new
@@ -230,7 +225,6 @@ namespace PharmacyAPI.Data
                     i.SortOrder
                 });
             });
-
 
             // ========================================================
             // PRODUCT VARIANT
@@ -246,9 +240,8 @@ namespace PharmacyAPI.Data
                 entity.Property(v => v.IsActive)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
-                // Product → Variants
+                // Product -> Variants
                 // ----------------------------------------------------
 
                 entity.HasOne(v => v.Product)
@@ -256,9 +249,8 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(v => v.ProductId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-
                 // ----------------------------------------------------
-                // Variant → Size
+                // Variant -> Size
                 // ----------------------------------------------------
 
                 entity.HasOne(v => v.Size)
@@ -266,9 +258,8 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(v => v.SizeId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // Variant → HeelSize
+                // Variant -> HeelSize
                 // ----------------------------------------------------
 
                 entity.HasOne(v => v.HeelSize)
@@ -276,40 +267,27 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(v => v.HeelSizeId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // Indexes
+                // VARIANT INDEXES
+                //
+                // Main query:
+                //
+                // ProductId + IsActive
+                //
+                // This is especially important because only active
+                // variants are loaded by the optimized services.
                 // ----------------------------------------------------
-
-                entity.HasIndex(v => v.ProductId);
-
-                entity.HasIndex(v => v.SizeId);
-
-                entity.HasIndex(v => v.HeelSizeId);
 
                 entity.HasIndex(v => new
                 {
                     v.ProductId,
                     v.IsActive
                 });
+
+                entity.HasIndex(v => v.SizeId);
+
+                entity.HasIndex(v => v.HeelSizeId);
             });
-            ///=====================product index ==================
-
-            modelBuilder.Entity<Product>()
-    .HasIndex(p => new
-    {
-        p.IsDeleted,
-        p.CategoryId,
-        p.Id
-    });
-            modelBuilder.Entity<Product>()
-    .HasIndex(p => new
-    {
-        p.IsDeleted,
-        p.DiscountPercentage,
-        p.Id
-    });
-
 
             // ========================================================
             // SIZE
@@ -323,15 +301,10 @@ namespace PharmacyAPI.Data
                     .IsRequired()
                     .HasMaxLength(50);
 
-
-                // ----------------------------------------------------
-                // Prevent duplicate sizes
-                // ----------------------------------------------------
-
-                entity.HasIndex(s => s.Name)
-                    .IsUnique();
+                entity.HasIndex(h => h.Name)
+    .IsUnique()
+    .HasFilter("[IsActive] = 1");
             });
-
 
             // ========================================================
             // HEEL SIZE
@@ -345,15 +318,10 @@ namespace PharmacyAPI.Data
                     .IsRequired()
                     .HasMaxLength(50);
 
-
-                // ----------------------------------------------------
-                // Prevent duplicate heel sizes
-                // ----------------------------------------------------
-
                 entity.HasIndex(h => h.Name)
-                    .IsUnique();
+      .IsUnique()
+      .HasFilter("[IsActive] = 1");
             });
-
 
             // ========================================================
             // ORDER
@@ -369,9 +337,8 @@ namespace PharmacyAPI.Data
                 entity.Property(o => o.OrderDate)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
-                // Client → Orders
+                // Client -> Orders
                 // ----------------------------------------------------
 
                 entity.HasOne(o => o.Client)
@@ -379,14 +346,27 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(o => o.ClientId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // Useful for dashboard/order queries
+                // ORDER INDEXES
+                //
+                // 1. General order pagination:
+                //
+                // OrderDate DESC, Id DESC
+                //
+                // 2. Dashboard:
+                //
+                // Status + OrderDate
+                //
+                // 3. Client order history:
+                //
+                // ClientId + OrderDate
                 // ----------------------------------------------------
 
-                entity.HasIndex(o => o.OrderDate);
-
-                entity.HasIndex(o => o.Status);
+                entity.HasIndex(o => new
+                {
+                    o.OrderDate,
+                    o.Id
+                });
 
                 entity.HasIndex(o => new
                 {
@@ -394,9 +374,12 @@ namespace PharmacyAPI.Data
                     o.OrderDate
                 });
 
-                entity.HasIndex(o => o.ClientId);
+                entity.HasIndex(o => new
+                {
+                    o.ClientId,
+                    o.OrderDate
+                });
             });
-
 
             // ========================================================
             // ORDER ITEM
@@ -415,9 +398,8 @@ namespace PharmacyAPI.Data
                 entity.Property(i => i.Quantity)
                     .IsRequired();
 
-
                 // ----------------------------------------------------
-                // Order → OrderItems
+                // Order -> OrderItems
                 // ----------------------------------------------------
 
                 entity.HasOne(i => i.Order)
@@ -425,12 +407,10 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(i => i.OrderId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-
                 // ----------------------------------------------------
-                // Product → OrderItems
+                // Product -> OrderItems
                 //
-                // Restrict because historical orders must never
-                // automatically delete a product.
+                // Historical orders must preserve their products.
                 // ----------------------------------------------------
 
                 entity.HasOne(i => i.Product)
@@ -438,12 +418,10 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(i => i.ProductId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // ProductVariant → OrderItems
+                // ProductVariant -> OrderItems
                 //
-                // Restrict because historical orders must preserve
-                // the variant they were purchased from.
+                // Historical orders must preserve their variants.
                 // ----------------------------------------------------
 
                 entity.HasOne(i => i.ProductVariant)
@@ -451,9 +429,17 @@ namespace PharmacyAPI.Data
                     .HasForeignKey(i => i.ProductVariantId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-
                 // ----------------------------------------------------
-                // Indexes
+                // ORDER ITEM INDEXES
+                //
+                // OrderId:
+                // Loading items belonging to an order.
+                //
+                // ProductId:
+                // Best sellers / product sales analysis.
+                //
+                // ProductVariantId:
+                // Variant-related order lookups.
                 // ----------------------------------------------------
 
                 entity.HasIndex(i => i.OrderId);
@@ -462,9 +448,11 @@ namespace PharmacyAPI.Data
 
                 entity.HasIndex(i => i.ProductVariantId);
             });
-            //==================================================
-            // visitors
-            // =================================================
+
+            // ========================================================
+            // WEBSITE VISITS
+            // ========================================================
+
             modelBuilder.Entity<WebsiteVisit>(entity =>
             {
                 entity.HasKey(x => x.Id);
@@ -476,30 +464,18 @@ namespace PharmacyAPI.Data
                 entity.Property(x => x.VisitedAt)
                     .IsRequired();
 
-             
-            });
+                // ----------------------------------------------------
+                // Dashboard visit statistics
+                //
+                // Date range first, visitor second.
+                // ----------------------------------------------------
 
-            // ========================================================
-            // INDEXES
-            // ========================================================
-            modelBuilder.Entity<WebsiteVisit>()
-    .HasIndex(x => new
-    {
-        x.VisitedAt,
-        x.VisitorId
-    });
-            modelBuilder.Entity<Order>()
-    .HasIndex(x => new
-    {
-        x.Status,
-        x.OrderDate
-    });
-            modelBuilder.Entity<OrderItem>()
-                .HasIndex(x => new
+                entity.HasIndex(x => new
                 {
-                    x.OrderId,
-                    x.ProductId
+                    x.VisitedAt,
+                    x.VisitorId
                 });
+            });
 
             // ========================================================
             // CLIENT
@@ -523,16 +499,17 @@ namespace PharmacyAPI.Data
                 entity.Property(c => c.Address)
                     .HasMaxLength(1000);
 
-
                 // ----------------------------------------------------
-                // Phone is used to find existing clients during
-                // checkout.
+                // Checkout performs:
+                //
+                // WHERE PhoneNumber = ...
+                //
+                // Unique also prevents duplicate clients.
                 // ----------------------------------------------------
 
                 entity.HasIndex(c => c.PhoneNumber)
                     .IsUnique();
             });
-
 
             // ========================================================
             // SLIDER
@@ -543,21 +520,21 @@ namespace PharmacyAPI.Data
                 entity.HasKey(s => s.Id);
             });
 
-
             // ========================================================
             // IDENTITY
             // ========================================================
 
             modelBuilder.Entity<ApplicationUser>(entity =>
             {
+                // Used when looking up users by phone.
                 entity.HasIndex(u => u.PhoneNumber);
             });
-
 
             // ========================================================
             // ROLE SEED
             // ========================================================
-   modelBuilder.Entity<ApplicationRole>().HasData(
+
+            modelBuilder.Entity<ApplicationRole>().HasData(
                 new ApplicationRole
                 {
                     Id = "role-user",

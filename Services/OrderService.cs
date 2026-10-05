@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using PharmacyAPI.Data;
 using PharmacyAPI.Models;
 using PharmacyAPI.Models.RequestsModels;
 using PharmacyAPI.Models.Responses;
-using System.Data;
 using System.Linq.Expressions;
 
 namespace PharmacyAPI.Services
@@ -17,10 +17,11 @@ namespace PharmacyAPI.Services
         Task<OrderDto?> GetOrder(
             int id,
             CancellationToken cancellationToken = default);
+
         Task<PagedResponse<OrderDto>> GetOrders(
-               int page = 1,
-               int pageSize = 100,
-               CancellationToken cancellationToken = default);
+            int page = 1,
+            int pageSize = 100,
+            CancellationToken cancellationToken = default);
 
         Task<List<OrderDto>> GetOrdersByClient(
             int clientId,
@@ -43,7 +44,7 @@ namespace PharmacyAPI.Services
     }
 
 
-    public class OrderService : IOrderService
+    public sealed class OrderService : IOrderService
     {
         private readonly ShoesDbContext _context;
 
@@ -54,19 +55,20 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
+        // =========================================================
         // CREATE ORDER
-        // =====================================================
+        // =========================================================
 
         public async Task<Order> CreateOrder(
-        CreateOrderDto dto,
-        CancellationToken cancellationToken = default)
+            CreateOrderDto dto,
+            CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(dto);
 
-            // =========================================================
+
+            // =====================================================
             // VALIDATE CLIENT
-            // =========================================================
+            // =====================================================
 
             if (dto.Client == null)
             {
@@ -74,34 +76,50 @@ namespace PharmacyAPI.Services
                     "معلومات العميل غير متوفره.");
             }
 
-            if (string.IsNullOrWhiteSpace(dto.Client.Name))
+
+            var clientName =
+                dto.Client.Name?.Trim();
+
+
+            if (string.IsNullOrWhiteSpace(clientName))
             {
                 throw new InvalidOperationException(
                     "اسم العميل مطلوب.");
             }
 
-            if (string.IsNullOrWhiteSpace(dto.Client.PhoneNumber))
+
+            var phoneNumber =
+                dto.Client.PhoneNumber?.Trim();
+
+
+            if (string.IsNullOrWhiteSpace(phoneNumber))
             {
                 throw new InvalidOperationException(
                     "رقم العميل مطلوب.");
             }
 
-            if (string.IsNullOrWhiteSpace(dto.Client.Address))
+
+            var address =
+                dto.Client.Address?.Trim();
+
+
+            if (string.IsNullOrWhiteSpace(address))
             {
                 throw new InvalidOperationException(
                     "عنوان العميل مطلوب.");
             }
 
 
-            // =========================================================
+            // =====================================================
             // VALIDATE ITEMS
-            // =========================================================
+            // =====================================================
 
             if (dto.Items == null || dto.Items.Count == 0)
             {
                 throw new InvalidOperationException(
                     "الطلب يجب ان يحتوي علي الاقل علي منتج واحد.");
             }
+
 
             foreach (var item in dto.Items)
             {
@@ -111,11 +129,13 @@ namespace PharmacyAPI.Services
                         "منتج غير متوفر.");
                 }
 
+
                 if (item.Quantity <= 0)
                 {
                     throw new InvalidOperationException(
                         "الكميه يجب ان تكون اكبر من الصفر.");
                 }
+
 
                 if (item.ProductVariantId.HasValue &&
                     item.ProductVariantId.Value <= 0)
@@ -126,28 +146,34 @@ namespace PharmacyAPI.Services
             }
 
 
-            // =========================================================
+            // =====================================================
             // MERGE DUPLICATE ITEMS
-            // =========================================================
+            // =====================================================
 
-            var requestedItems = dto.Items
-                .GroupBy(x => new
-                {
-                    x.ProductId,
-                    x.ProductVariantId
-                })
-                .Select(g => new RequestedOrderItem
-                {
-                    ProductId = g.Key.ProductId,
-                    ProductVariantId = g.Key.ProductVariantId,
-                    Quantity = g.Sum(x => x.Quantity)
-                })
-                .ToList();
+            var requestedItems =
+                dto.Items
+                    .GroupBy(x => new
+                    {
+                        x.ProductId,
+                        x.ProductVariantId
+                    })
+                    .Select(g => new RequestedOrderItem
+                    {
+                        ProductId =
+                            g.Key.ProductId,
+
+                        ProductVariantId =
+                            g.Key.ProductVariantId,
+
+                        Quantity =
+                            g.Sum(x => x.Quantity)
+                    })
+                    .ToList();
 
 
-            // =========================================================
+            // =====================================================
             // VALIDATE MERGED QUANTITIES
-            // =========================================================
+            // =====================================================
 
             if (requestedItems.Any(x => x.Quantity <= 0))
             {
@@ -156,349 +182,332 @@ namespace PharmacyAPI.Services
             }
 
 
-            var productIds = requestedItems
-                .Select(x => x.ProductId)
-                .Distinct()
-                .ToList();
+            // =====================================================
+            // PRODUCT IDS
+            // =====================================================
+
+            var productIds =
+                requestedItems
+                    .Select(x => x.ProductId)
+                    .Distinct()
+                    .ToList();
 
 
-            // =========================================================
-            // START TRANSACTION
-            // =========================================================
+            // =====================================================
+            // LOAD PRODUCTS
+            // =====================================================
+            //
+            // Only active variants are loaded.
+            //
+            // No stock is changed here.
+            //
+            // =====================================================
 
-            await using var transaction =
-                await _context.Database.BeginTransactionAsync(
-                    IsolationLevel.Serializable,
-                    cancellationToken);
+            var products =
+                await _context.Products
+                    .AsTracking()
+                    .Where(p =>
+                        productIds.Contains(p.Id) &&
+                        !p.IsDeleted)
+                    .Include(p =>
+                        p.Variants
+                            .Where(v => v.IsActive))
+                    .ToDictionaryAsync(
+                        p => p.Id,
+                        cancellationToken);
 
-            try
+
+            // =====================================================
+            // CHECK PRODUCTS EXIST
+            // =====================================================
+
+            if (products.Count != productIds.Count)
             {
-                // =====================================================
-                // LOAD PRODUCTS + VARIANTS
-                // =====================================================
-
-                var products = await _context.Products
-      .Where(p =>
-          productIds.Contains(p.Id) &&
-          !p.IsDeleted)
-      .Include(p => p.Variants
-          .Where(v => v.IsActive))
-      .ToDictionaryAsync(
-          p => p.Id,
-          cancellationToken);
+                var missingProductId =
+                    productIds.First(
+                        id => !products.ContainsKey(id));
 
 
-                // =====================================================
-                // CHECK PRODUCTS EXIST
-                // =====================================================
-
-                if (products.Count != productIds.Count)
-                {
-                    var missingProductId =
-                        productIds.First(
-                            id => !products.ContainsKey(id));
-
-                    throw new KeyNotFoundException(
-                        $"المنتج {missingProductId} غير موجود.");
-                }
+                throw new KeyNotFoundException(
+                    $"المنتج {missingProductId} غير موجود.");
+            }
 
 
-                // =====================================================
-                // FIND CLIENT
-                // =====================================================
+            // =====================================================
+            // FIND CLIENT
+            // =====================================================
 
-                var phoneNumber =
-                    dto.Client.PhoneNumber.Trim();
-
-                var client = await _context.Clients
+            var client =
+                await _context.Clients
                     .FirstOrDefaultAsync(
                         c => c.PhoneNumber == phoneNumber,
                         cancellationToken);
 
-                var now = DateTime.UtcNow;
+
+            var now =
+                DateTime.UtcNow;
 
 
-                // =====================================================
-                // CREATE / UPDATE CLIENT
-                // =====================================================
+            // =====================================================
+            // CLIENT EMAIL
+            // =====================================================
 
-                if (client == null)
+            var email =
+                string.IsNullOrWhiteSpace(dto.Client.Email)
+                    ? null
+                    : dto.Client.Email.Trim();
+
+
+            // =====================================================
+            // CREATE / UPDATE CLIENT
+            // =====================================================
+
+            if (client == null)
+            {
+                client = new Client
                 {
-                    client = new Client
-                    {
-                        Name = dto.Client.Name.Trim(),
+                    Name =
+                        clientName,
 
-                        PhoneNumber = phoneNumber,
+                    PhoneNumber =
+                        phoneNumber,
 
-                        Address = dto.Client.Address.Trim(),
+                    Address =
+                        address,
 
-                        Email =
-                            string.IsNullOrWhiteSpace(dto.Client.Email)
-                                ? null
-                                : dto.Client.Email.Trim(),
+                    Email =
+                        email,
 
-                        CreatedAt = now
-                    };
-
-                    _context.Clients.Add(client);
-                }
-                else
-                {
-                    client.Name =
-                        dto.Client.Name.Trim();
-
-                    client.Address =
-                        dto.Client.Address.Trim();
-
-                    client.Email =
-                        string.IsNullOrWhiteSpace(dto.Client.Email)
-                            ? null
-                            : dto.Client.Email.Trim();
-
-                    client.UpdatedAt = now;
-                }
-
-
-                // =====================================================
-                // CREATE ORDER
-                // =====================================================
-
-                var order = new Order
-                {
-                    Client = client,
-
-                    OrderDate = now,
-
-                    Status = OrderStatus.Confirmed,
-
-                    TotalAmount = 0
+                    CreatedAt =
+                        now
                 };
 
 
-                decimal total = 0;
+                _context.Clients.Add(client);
+            }
+            else
+            {
+                client.Name =
+                    clientName;
+
+                client.Address =
+                    address;
+
+                client.Email =
+                    email;
+
+                client.UpdatedAt =
+                    now;
+            }
 
 
-                // =====================================================
-                // PROCESS ORDER ITEMS
-                // =====================================================
+            // =====================================================
+            // CREATE ORDER
+            // =====================================================
 
-                foreach (var requestedItem in requestedItems)
+            var order =
+                new Order
                 {
-                    var product =
-                        products[requestedItem.ProductId];
+                    Client =
+                        client,
 
-                    ProductVariant? variant = null;
+                    OrderDate =
+                        now,
+
+                    Status =
+                        OrderStatus.Confirmed,
+
+                    TotalAmount =
+                        0
+                };
 
 
-                    // =================================================
-                    // DETERMINE WHETHER PRODUCT USES VARIANTS
-                    // =================================================
-
-                    var hasVariants =
-                        product.Variants.Any();
+            decimal total = 0;
 
 
-                    // =================================================
-                    // PRODUCT HAS VARIANTS
-                    // =================================================
+            // =====================================================
+            // PROCESS ORDER ITEMS
+            // =====================================================
 
-                    if (hasVariants)
+            foreach (var requestedItem in requestedItems)
+            {
+                var product =
+                    products[requestedItem.ProductId];
+
+
+                ProductVariant? variant = null;
+
+
+                // =================================================
+                // DETERMINE VARIANT STATE
+                // =================================================
+
+                var hasVariants =
+                    product.Variants.Count > 0;
+
+
+                // =================================================
+                // PRODUCT HAS VARIANTS
+                // =================================================
+
+                if (hasVariants)
+                {
+                    // A product with variants MUST receive
+                    // a variant.
+
+                    if (!requestedItem.ProductVariantId.HasValue)
                     {
-                        // -------------------------------------------------
-                        // A product that has variants MUST receive a variant
-                        // -------------------------------------------------
-
-                        if (!requestedItem.ProductVariantId.HasValue)
-                        {
-                            throw new InvalidOperationException(
-                                "يجب اختيار المقاس أو الاختيار الخاص بالمنتج.");
-                        }
-
-
-                        // -------------------------------------------------
-                        // FIND VARIANT
-                        // -------------------------------------------------
-
-                        variant =
-                            product.Variants.FirstOrDefault(
-                                v =>
-                                    v.Id ==
-                                    requestedItem.ProductVariantId.Value);
-
-
-                        // -------------------------------------------------
-                        // VARIANT MUST BELONG TO PRODUCT
-                        // -------------------------------------------------
-
-                        if (variant == null)
-                        {
-                            throw new InvalidOperationException(
-                                "اختيار المنتج غير صحيح.");
-                        }
-
-
-                        // -------------------------------------------------
-                        // VARIANT MUST BE ACTIVE
-                        // -------------------------------------------------
-
-                        if (!variant.IsActive)
-                        {
-                            throw new InvalidOperationException(
-                                "الاختيار الخاص بالمنتج غير متاح حالياً.");
-                        }
-
-
-                        // -------------------------------------------------
-                        // CHECK VARIANT STOCK
-                        // -------------------------------------------------
-
-                        //if (variant.StockQuantity <
-                        //    requestedItem.Quantity)
-                        //{
-                        //    throw new InvalidOperationException(
-                        //        "الكمية المطلوبة من المنتج غير متوفرة.");
-                        //}
-
-
-                        // -------------------------------------------------
-                        // DECREASE VARIANT STOCK
-                        // -------------------------------------------------
-
-                        //variant.StockQuantity -=
-                        //    requestedItem.Quantity;
+                        throw new InvalidOperationException(
+                            "يجب اختيار المقاس أو الاختيار الخاص بالمنتج.");
                     }
 
 
                     // =================================================
-                    // PRODUCT DOES NOT HAVE VARIANTS
+                    // FIND ACTIVE VARIANT
                     // =================================================
 
-                    else
+                    variant =
+                        product.Variants.FirstOrDefault(
+                            v =>
+                                v.Id ==
+                                requestedItem.ProductVariantId.Value);
+
+
+                    // =================================================
+                    // VARIANT VALIDATION
+                    // =================================================
+
+                    if (variant == null)
                     {
-                        // -------------------------------------------------
-                        // A product without variants must NOT receive
-                        // a variant ID.
-                        // -------------------------------------------------
-
-                        if (requestedItem.ProductVariantId.HasValue)
-                        {
-                            throw new InvalidOperationException(
-                                "اختيار المنتج غير صحيح.");
-                        }
+                        throw new InvalidOperationException(
+                            "اختيار المنتج غير صحيح.");
+                    }
 
 
-                        // -------------------------------------------------
-                        // CHECK PRODUCT STOCK
-                        // -------------------------------------------------
-
-                        //if (product.StockQuantity <
-                        //    requestedItem.Quantity)
-                        //{
-                        //    throw new InvalidOperationException(
-                        //        "الكمية المطلوبة من المنتج غير متوفرة.");
-                        //}
-
-
-                        // -------------------------------------------------
-                        // DECREASE PRODUCT STOCK
-                        // -------------------------------------------------
-
-                        //product.StockQuantity -=
-                        //    requestedItem.Quantity;
+                    if (!variant.IsActive)
+                    {
+                        throw new InvalidOperationException(
+                            "الاختيار الخاص بالمنتج غير متاح حالياً.");
                     }
 
 
                     // =================================================
-                    // CALCULATE SELLING PRICE
+                    // IMPORTANT
                     // =================================================
-
-                    var unitPrice =
-                        CalculateSellingPrice(product);
-
-
+                    //
+                    // StockQuantity is intentionally NOT checked,
+                    // decreased, or changed.
+                    //
                     // =================================================
-                    // CALCULATE SUBTOTAL
-                    // =================================================
-
-                    var subtotal =
-                        unitPrice *
-                        requestedItem.Quantity;
-
-                    total += subtotal;
-
-
-                    // =================================================
-                    // CREATE ORDER ITEM
-                    // =================================================
-
-                    order.Items.Add(
-                        new OrderItem
-                        {
-                            ProductId =
-                                product.Id,
-
-                            ProductVariantId =
-                                variant?.Id,
-
-                            Quantity =
-                                requestedItem.Quantity,
-
-                            UnitPrice =
-                                unitPrice,
-
-                            ActualPrice =
-                                product.ActualPrice
-                        });
                 }
 
 
-                // =====================================================
-                // FINAL ORDER TOTAL
-                // =====================================================
+                // =================================================
+                // PRODUCT WITHOUT VARIANTS
+                // =================================================
 
-                order.TotalAmount =
-                    Math.Round(
-                        total,
-                        2,
-                        MidpointRounding.AwayFromZero);
+                else
+                {
+                    // A product without variants MUST NOT receive
+                    // a variant ID.
 
-
-                // =====================================================
-                // ADD ORDER
-                // =====================================================
-
-                _context.Orders.Add(order);
+                    if (requestedItem.ProductVariantId.HasValue)
+                    {
+                        throw new InvalidOperationException(
+                            "اختيار المنتج غير صحيح.");
+                    }
 
 
-                // =====================================================
-                // SAVE EVERYTHING
-                // =====================================================
-
-                await _context.SaveChangesAsync(
-                    cancellationToken);
-
-
-                // =====================================================
-                // COMMIT
-                // =====================================================
-
-                await transaction.CommitAsync(
-                    cancellationToken);
+                    // =================================================
+                    // IMPORTANT
+                    // =================================================
+                    //
+                    // StockQuantity is intentionally NOT checked,
+                    // decreased, or changed.
+                    //
+                    // =================================================
+                }
 
 
-                return order;
+                // =================================================
+                // CALCULATE SELLING PRICE
+                // =================================================
+
+                var unitPrice =
+                    CalculateSellingPrice(product);
+
+
+                // =================================================
+                // CALCULATE SUBTOTAL
+                // =================================================
+
+                var subtotal =
+                    unitPrice *
+                    requestedItem.Quantity;
+
+
+                total +=
+                    subtotal;
+
+
+                // =================================================
+                // CREATE ORDER ITEM
+                // =================================================
+
+                order.Items.Add(
+                    new OrderItem
+                    {
+                        ProductId =
+                            product.Id,
+
+                        ProductVariantId =
+                            variant?.Id,
+
+                        Quantity =
+                            requestedItem.Quantity,
+
+                        UnitPrice =
+                            unitPrice,
+
+                        ActualPrice =
+                            product.ActualPrice
+                    });
             }
-            catch
-            {
-                await transaction.RollbackAsync(
-                    cancellationToken);
 
-                throw;
-            }
+
+            // =====================================================
+            // FINAL ORDER TOTAL
+            // =====================================================
+
+            order.TotalAmount =
+                Math.Round(
+                    total,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+
+            // =====================================================
+            // ADD ORDER
+            // =====================================================
+
+            _context.Orders.Add(order);
+
+
+            // =====================================================
+            // SAVE EVERYTHING
+            // =====================================================
+
+            await _context.SaveChangesAsync(
+                cancellationToken);
+
+
+            return order;
         }
-        // =====================================================
+
+
+        // =========================================================
         // CALCULATE SELLING PRICE
-        // =====================================================
+        // =========================================================
 
         private static decimal CalculateSellingPrice(
             Product product)
@@ -509,13 +518,10 @@ namespace PharmacyAPI.Services
 
             if (product.DiscountPercentage > 0)
             {
-                price =
-                    price -
-                    (
-                        price *
-                        product.DiscountPercentage /
-                        100
-                    );
+                price -=
+                    price *
+                    product.DiscountPercentage /
+                    100;
             }
 
 
@@ -526,67 +532,143 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
-        // GET ALL ORDERS
-        // =====================================================
+        // =========================================================
+        // GET ORDERS
+        // =========================================================
 
-        public async Task<PagedResponse<OrderDto>> GetOrders(int page = 1, int pageSize = 100,
-                 CancellationToken cancellationToken = default)
+        public async Task<PagedResponse<OrderDto>> GetOrders(
+            int page = 1,
+            int pageSize = 100,
+            CancellationToken cancellationToken = default)
         {
-            page = Math.Max(page, 1);
-            pageSize = Math.Clamp(pageSize, 1, 100);
-            var items = await _context.Orders.AsNoTracking().OrderByDescending(o => o.OrderDate)
-                .Skip((page - 1) * pageSize).Take(pageSize + 1).Select(OrderProjection())
-                .ToListAsync(cancellationToken);
-            var hasMore = items.Count > pageSize;
-            if (hasMore) { items.RemoveAt(items.Count - 1); }
+            page =
+                Math.Max(
+                    page,
+                    1);
+
+
+            pageSize =
+                Math.Clamp(
+                    pageSize,
+                    1,
+                    100);
+
+
+            var items =
+                await _context.Orders
+                    .AsNoTracking()
+                    .OrderByDescending(
+                        o => o.OrderDate)
+                    .ThenByDescending(
+                        o => o.Id)
+                    .Skip(
+                        (page - 1) *
+                        pageSize)
+                    .Take(
+                        pageSize + 1)
+                    .Select(
+                        OrderProjection())
+                    .ToListAsync(
+                        cancellationToken);
+
+
+            var hasMore =
+                items.Count >
+                pageSize;
+
+
+            if (hasMore)
+            {
+                items.RemoveAt(
+                    items.Count - 1);
+            }
+
+
             return new PagedResponse<OrderDto>
-            { Items = items, Page = page, PageSize = pageSize, HasMore = hasMore };
+            {
+                Items =
+                    items,
+
+                Page =
+                    page,
+
+                PageSize =
+                    pageSize,
+
+                HasMore =
+                    hasMore
+            };
         }
 
-        // =====================================================
+
+        // =========================================================
         // GET ORDER BY ID
-        // =====================================================
+        // =========================================================
 
         public async Task<OrderDto?> GetOrder(
             int id,
             CancellationToken cancellationToken = default)
         {
+            if (id <= 0)
+            {
+                return null;
+            }
+
+
             return await _context.Orders
                 .AsNoTracking()
                 .Where(o => o.Id == id)
                 .Select(OrderProjection())
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(
+                    cancellationToken);
         }
 
 
-        // =====================================================
+        // =========================================================
         // GET ORDERS BY CLIENT
-        // =====================================================
+        // =========================================================
 
         public async Task<List<OrderDto>> GetOrdersByClient(
             int clientId,
             CancellationToken cancellationToken = default)
         {
+            if (clientId <= 0)
+            {
+                return [];
+            }
+
+
             return await _context.Orders
                 .AsNoTracking()
                 .Where(o =>
-                    o.ClientId == clientId)
-                .OrderByDescending(o => o.OrderDate)
-                .Select(OrderProjection())
-                .ToListAsync(cancellationToken);
+                    o.ClientId ==
+                    clientId)
+                .OrderByDescending(
+                    o => o.OrderDate)
+                .ThenByDescending(
+                    o => o.Id)
+                .Select(
+                    OrderProjection())
+                .ToListAsync(
+                    cancellationToken);
         }
 
 
-        // =====================================================
+        // =========================================================
         // UPDATE ORDER STATUS
-        // =====================================================
+        // =========================================================
 
         public async Task<bool> UpdateOrderStatus(
             int id,
             string status,
             CancellationToken cancellationToken = default)
         {
+            if (id <= 0)
+            {
+                return false;
+            }
+
+
             if (string.IsNullOrWhiteSpace(status))
             {
                 throw new InvalidOperationException(
@@ -604,10 +686,11 @@ namespace PharmacyAPI.Services
             }
 
 
-            var order = await _context.Orders
-                .FirstOrDefaultAsync(
-                    o => o.Id == id,
-                    cancellationToken);
+            var order =
+                await _context.Orders
+                    .FirstOrDefaultAsync(
+                        o => o.Id == id,
+                        cancellationToken);
 
 
             if (order == null)
@@ -620,24 +703,19 @@ namespace PharmacyAPI.Services
             // NOTHING TO UPDATE
             // =================================================
 
-            if (order.Status == orderStatus)
+            if (order.Status ==
+                orderStatus)
             {
                 return true;
             }
 
 
             // =================================================
-            // DO NOT CHANGE A CANCELLED ORDER
-            // =================================================
-            //
-            // Cancellation already restores stock.
-            //
-            // Allowing a cancelled order to become Confirmed
-            // again would create a stock inconsistency.
-            //
+            // CANCELLED ORDER IS FINAL
             // =================================================
 
-            if (order.Status == OrderStatus.Cancelled)
+            if (order.Status ==
+                OrderStatus.Cancelled)
             {
                 throw new InvalidOperationException(
                     "لا يمكن تغيير حالة طلب ملغي.");
@@ -656,164 +734,76 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
+        // =========================================================
         // CANCEL ORDER
-        // =====================================================
+        // =========================================================
+        //
+        // IMPORTANT:
+        // This method ONLY changes the order status.
+        //
+        // It NEVER changes Product.StockQuantity.
+        //
+        // It NEVER changes ProductVariant.StockQuantity.
+        //
+        // =========================================================
 
         public async Task<bool> CancelOrder(
             int id,
             CancellationToken cancellationToken = default)
         {
-            // =================================================
-            // START TRANSACTION
-            // =================================================
-
-            await using var transaction =
-                await _context.Database.BeginTransactionAsync(
-                    IsolationLevel.Serializable,
-                    cancellationToken);
-
-
-            try
+            if (id <= 0)
             {
-                // =================================================
-                // LOAD ORDER ITEMS
-                // =================================================
-                //
-                // We need the product/variant IDs so we can
-                // return the stock.
-                //
-                // =================================================
+                return false;
+            }
 
-                var order = await _context.Orders
-                    .Include(o => o.Items)
+
+            var order =
+                await _context.Orders
                     .FirstOrDefaultAsync(
                         o => o.Id == id,
                         cancellationToken);
 
 
-                if (order == null)
-                {
-                    await transaction.RollbackAsync(
-                        cancellationToken);
-
-                    return false;
-                }
+            if (order == null)
+            {
+                return false;
+            }
 
 
-                // =================================================
-                // ALREADY CANCELLED
-                // =================================================
+            // =================================================
+            // ALREADY CANCELLED
+            // =================================================
 
-                if (order.Status == OrderStatus.Cancelled)
-                {
-                    await transaction.CommitAsync(
-                        cancellationToken);
-
-                    return true;
-                }
-
-
-                // =================================================
-                // RESTORE STOCK
-                // =================================================
-
-                foreach (var item in order.Items)
-                {
-                    // =============================================
-                    // VARIANT STOCK
-                    // =============================================
-
-                    if (item.ProductVariantId.HasValue)
-                    {
-                        var variant =
-                            await _context.ProductVariants
-                                .FirstOrDefaultAsync(
-                                    v =>
-                                        v.Id ==
-                                        item.ProductVariantId.Value,
-                                    cancellationToken);
-
-
-                        if (variant != null)
-                        {
-                            variant.StockQuantity +=
-                                item.Quantity;
-                        }
-                    }
-                    else
-                    {
-                        // =============================================
-                        // PRODUCT STOCK
-                        // =============================================
-
-                        var product =
-                            await _context.Products
-                                .FirstOrDefaultAsync(
-                                    p =>
-                                        p.Id ==
-                                        item.ProductId,
-                                    cancellationToken);
-
-
-                        if (product != null)
-                        {
-                            product.StockQuantity +=
-                                item.Quantity;
-                        }
-                    }
-                }
-
-
-                // =================================================
-                // CANCEL ORDER
-                // =================================================
-
-                order.Status =
-                    OrderStatus.Cancelled;
-
-
-                await _context.SaveChangesAsync(
-                    cancellationToken);
-
-
-                // =================================================
-                // COMMIT
-                // =================================================
-
-                await transaction.CommitAsync(
-                    cancellationToken);
-
-
+            if (order.Status ==
+                OrderStatus.Cancelled)
+            {
                 return true;
             }
-            catch
-            {
-                await transaction.RollbackAsync(
-                    cancellationToken);
 
-                throw;
-            }
+
+            // =================================================
+            // CANCEL ORDER
+            // =================================================
+
+            order.Status =
+                OrderStatus.Cancelled;
+
+
+            // =================================================
+            // SAVE
+            // =================================================
+
+            await _context.SaveChangesAsync(
+                cancellationToken);
+
+
+            return true;
         }
 
 
-        // =====================================================
+        // =========================================================
         // CURRENT MONTH DASHBOARD
-        // =====================================================
-        //
-        // ONE DATABASE QUERY.
-        //
-        // Previously:
-        //
-        // 1. Count
-        // 2. Sales
-        // 3. Gain
-        //
-        // Now:
-        //
-        // 1. One aggregate query.
-        //
-        // =====================================================
+        // =========================================================
 
         public async Task<DashboardStatsDto> GetCurrentMonthStats(
             CancellationToken cancellationToken = default)
@@ -858,7 +848,8 @@ namespace PharmacyAPI.Services
                                 o.TotalAmount),
 
                         Gain =
-                            g.SelectMany(o => o.Items)
+                            g.SelectMany(o =>
+                                o.Items)
                                 .Sum(i =>
                                     (i.UnitPrice -
                                      i.ActualPrice) *
@@ -899,13 +890,9 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
+        // =========================================================
         // TOTAL DASHBOARD
-        // =====================================================
-        //
-        // ONE DATABASE QUERY.
-        //
-        // =====================================================
+        // =========================================================
 
         public async Task<DashboardStatsDto> GetTotalStats(
             CancellationToken cancellationToken = default)
@@ -927,7 +914,8 @@ namespace PharmacyAPI.Services
                                 o.TotalAmount),
 
                         Gain =
-                            g.SelectMany(o => o.Items)
+                            g.SelectMany(o =>
+                                o.Items)
                                 .Sum(i =>
                                     (i.UnitPrice -
                                      i.ActualPrice) *
@@ -968,17 +956,19 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
+        // =========================================================
         // ORDER PROJECTION
-        // =====================================================
+        // =========================================================
         //
-        // Projection is used instead of Include().
+        // Projection instead of Include().
         //
         // Only required fields are selected.
         //
-        // Only the FIRST product image is returned.
+        // Only the first image is returned.
         //
-        // =====================================================
+        // Only the selected variant is returned.
+        //
+        // =========================================================
 
         private static Expression<Func<Order, OrderDto>>
             OrderProjection()
@@ -1025,9 +1015,9 @@ namespace PharmacyAPI.Services
                             ProductName =
                                 i.Product.NameEn,
 
-                            // =====================================
-                            // FIRST IMAGE
-                            // =====================================
+                            // =================================================
+                            // FIRST PRODUCT IMAGE
+                            // =================================================
 
                             ImageUrl =
                                 i.Product.Images
@@ -1037,9 +1027,9 @@ namespace PharmacyAPI.Services
                                         image.ImageUrl)
                                     .FirstOrDefault(),
 
-                            // =====================================
+                            // =================================================
                             // VARIANT
-                            // =====================================
+                            // =================================================
 
                             ProductVariantId =
                                 i.ProductVariantId,
@@ -1056,16 +1046,16 @@ namespace PharmacyAPI.Services
                                     ? i.ProductVariant.HeelSize.Name
                                     : null,
 
-                            // =====================================
+                            // =================================================
                             // QUANTITY
-                            // =====================================
+                            // =================================================
 
                             Quantity =
                                 i.Quantity,
 
-                            // =====================================
+                            // =================================================
                             // PRICE
-                            // =====================================
+                            // =================================================
 
                             UnitPrice =
                                 i.UnitPrice,
@@ -1082,9 +1072,9 @@ namespace PharmacyAPI.Services
         }
 
 
-        // =====================================================
+        // =========================================================
         // INTERNAL REQUESTED ITEM
-        // =====================================================
+        // =========================================================
 
         private sealed class RequestedOrderItem
         {

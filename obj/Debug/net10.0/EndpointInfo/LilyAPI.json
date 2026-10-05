@@ -2469,6 +2469,9 @@
             "type": "string",
             "nullable": true
           },
+          "isActive": {
+            "type": "boolean"
+          },
           "productVariants": {
             "type": "array",
             "items": {
@@ -2871,24 +2874,6 @@
         },
         "additionalProperties": false
       },
-      "ProductImageResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "imageUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "sortOrder": {
-            "type": "integer",
-            "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
       "ProductResponseDto": {
         "type": "object",
         "properties": {
@@ -2934,6 +2919,10 @@
             "type": "number",
             "format": "double"
           },
+          "discountedPrice": {
+            "type": "number",
+            "format": "double"
+          },
           "categoryId": {
             "type": "integer",
             "format": "int32"
@@ -2944,7 +2933,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProductImageResponseDto"
+              "type": "string"
             },
             "nullable": true
           },
@@ -3113,6 +3102,9 @@
           "name": {
             "type": "string",
             "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
           },
           "productVariants": {
             "type": "array",

@@ -3,404 +3,230 @@ using PharmacyAPI.Data;
 using PharmacyAPI.Models;
 using PharmacyAPI.Models.RequestsModels;
 
-namespace PharmacyAPI.Services
+namespace PharmacyAPI.Services;
+
+public interface ICategoryService
 {
-    public interface ICategoryService
+    Task<List<Category>> GetCategories(CancellationToken cancellationToken = default);
+    Task<Category?> GetCategory(int id, CancellationToken cancellationToken = default);
+    Task<Category> CreateCategory(CreateCategoryRequest dto, CancellationToken cancellationToken = default);
+    Task<List<Category>> GetCategoriesForMenu(CancellationToken cancellationToken = default);
+    Task UpdateCategory(int id, CreateCategoryRequest dto, CancellationToken cancellationToken = default);
+    Task DeleteCategory(int id, CancellationToken cancellationToken = default);
+}
+
+public sealed class CategoryService : ICategoryService
+{
+    private readonly ShoesDbContext _context;
+    private readonly ImageService _imageService;
+
+    public CategoryService(ImageService imageService, ShoesDbContext context)
     {
-        Task<List<Category>> GetCategories(
-            CancellationToken cancellationToken = default);
-
-        Task<Category?> GetCategory(
-            int id,
-            CancellationToken cancellationToken = default);
-
-        Task<Category> CreateCategory(
-            CreateCategoryRequest dto,
-            CancellationToken cancellationToken = default);
-
-        Task<List<Category>> GetCategoriesForMenu(
-            CancellationToken cancellationToken = default);
-
-        Task UpdateCategory(
-            int id,
-            CreateCategoryRequest dto,
-            CancellationToken cancellationToken = default);
-
-        Task DeleteCategory(
-            int id,
-            CancellationToken cancellationToken = default);
+        _imageService = imageService;
+        _context = context;
     }
 
-
-    public class CategoryService : ICategoryService
+    public Task<List<Category>> GetCategoriesForMenu(
+        CancellationToken cancellationToken = default)
     {
-        private readonly ShoesDbContext _context;
-        private readonly IConfiguration _configuration;
-        private readonly ImageService _imageService;
+        return _context.Categories
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
 
+    public Task<List<Category>> GetCategories(
+        CancellationToken cancellationToken = default)
+    {
+        return _context.Categories
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
 
-        public CategoryService(
-            ImageService imageService,
-            IConfiguration configuration,
-            ShoesDbContext context)
+    public Task<Category?> GetCategory(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        return _context.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                c => c.Id == id && !c.IsDeleted,
+                cancellationToken);
+    }
+
+    public async Task<Category> CreateCategory(
+        CreateCategoryRequest dto,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        var nameEn = dto.NameEn?.Trim();
+        var nameAr = dto.NameAr?.Trim();
+
+        if (string.IsNullOrWhiteSpace(nameEn))
+            throw new ArgumentException("Category English name is required.");
+
+        if (string.IsNullOrWhiteSpace(nameAr))
+            throw new ArgumentException("Category Arabic name is required.");
+
+        var exists = await _context.Categories
+            .AsNoTracking()
+            .AnyAsync(
+                c =>
+                    !c.IsDeleted &&
+                    (c.NameEn == nameEn || c.NameAr == nameAr),
+                cancellationToken);
+
+        if (exists)
+            throw new InvalidOperationException("الفئة موجودة بالفعل.");
+
+        var category = new Category
         {
-            _imageService = imageService;
-            _configuration = configuration;
-            _context = context;
+            NameEn = nameEn,
+            NameAr = nameAr,
+            IsDeleted = false
+        };
+
+        if (dto.Image is not null)
+        {
+            category.ImageUrl = await _imageService.SaveImageAsync(
+                dto.Image,
+                "categories",
+                cancellationToken);
         }
 
-
-        // =====================================================
-        // GET CATEGORIES FOR MENU
-        // =====================================================
-
-        public async Task<List<Category>> GetCategoriesForMenu(
-            CancellationToken cancellationToken = default)
+        try
         {
-            return await _context.Categories
-                .AsNoTracking()
-                .Where(c => !c.IsDeleted)
-                .ToListAsync(cancellationToken);
-        }
-
-
-        // =====================================================
-        // GET ALL CATEGORIES
-        // =====================================================
-
-        public async Task<List<Category>> GetCategories(
-            CancellationToken cancellationToken = default)
-        {
-            return await _context.Categories
-                .AsNoTracking()
-                .Where(c => !c.IsDeleted)
-                .ToListAsync(cancellationToken);
-        }
-
-
-        // =====================================================
-        // GET CATEGORY
-        // =====================================================
-
-        public async Task<Category?> GetCategory(
-            int id,
-            CancellationToken cancellationToken = default)
-        {
-            return await _context.Categories
-                .AsNoTracking()
-                .Where(c =>
-                    c.Id == id &&
-                    !c.IsDeleted)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-
-        // =====================================================
-        // CREATE CATEGORY
-        // =====================================================
-
-        public async Task<Category> CreateCategory(
-            CreateCategoryRequest dto,
-            CancellationToken cancellationToken = default)
-        {
-            ArgumentNullException.ThrowIfNull(dto);
-
-
-            // -------------------------------------------------
-            // VALIDATION
-            // -------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(dto.NameEn))
-            {
-                throw new ArgumentException(
-                    "Category English name is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.NameAr))
-            {
-                throw new ArgumentException(
-                    "Category Arabic name is required.");
-            }
-
-
-
-            // -------------------------------------------------
-            // CHECK DUPLICATE NAME
-            // -------------------------------------------------
-
-            var exists = await _context.Categories
-                .AnyAsync(
-                    c =>
-                        !c.IsDeleted &&
-                        (
-                            c.NameEn == dto.NameEn.Trim() ||
-                            c.NameAr == dto.NameAr.Trim()
-                        ),
-                    cancellationToken);
-
-            if (exists)
-            {
-                throw new InvalidOperationException(
-                    "الفئة موجودة بالفعل.");
-            }
-
-
-            // -------------------------------------------------
-            // CREATE CATEGORY
-            // -------------------------------------------------
-
-            var category = new Category
-            {
-                NameEn = dto.NameEn.Trim(),
-                NameAr = dto.NameAr.Trim(),
-                IsDeleted = false
-            };
-
-
-            // -------------------------------------------------
-            // IMAGE
-            // -------------------------------------------------
-
-            if (dto.Image is not null)
-            {
-                category.ImageUrl =
-                    await _imageService.SaveImageAsync(
-                        dto.Image,
-                        "categories",
-                        cancellationToken);
-            }
-
-
-            // -------------------------------------------------
-            // SAVE
-            // -------------------------------------------------
-
             _context.Categories.Add(category);
 
-            await _context.SaveChangesAsync(
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            if (!string.IsNullOrWhiteSpace(category.ImageUrl))
+                await _imageService.DeleteImageAsync(category.ImageUrl,"categories");
+
+            throw;
+        }
+
+        return category;
+    }
+
+    public async Task UpdateCategory(
+        int id,
+        CreateCategoryRequest dto,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        var nameEn = dto.NameEn?.Trim();
+        var nameAr = dto.NameAr?.Trim();
+
+        if (string.IsNullOrWhiteSpace(nameEn))
+            throw new ArgumentException("Category English name is required.");
+
+        if (string.IsNullOrWhiteSpace(nameAr))
+            throw new ArgumentException("Category Arabic name is required.");
+
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(
+                c => c.Id == id && !c.IsDeleted,
                 cancellationToken);
 
+        if (category is null)
+            throw new KeyNotFoundException("الفئة غير متوفره.");
 
-            return category;
+        var exists = await _context.Categories
+            .AsNoTracking()
+            .AnyAsync(
+                c =>
+                    c.Id != id &&
+                    !c.IsDeleted &&
+                    (c.NameEn == nameEn || c.NameAr == nameAr),
+                cancellationToken);
+
+        if (exists)
+            throw new InvalidOperationException("الفئة موجودة بالفعل.");
+
+        category.NameEn = nameEn;
+        category.NameAr = nameAr;
+
+        string? oldImageUrl = null;
+        string? newImageUrl = null;
+
+        if (dto.Image is not null)
+        {
+            oldImageUrl = category.ImageUrl;
+
+            newImageUrl = await _imageService.SaveImageAsync(
+                dto.Image,
+                "categories",
+                cancellationToken);
+
+            category.ImageUrl = newImageUrl;
         }
 
-
-        // =====================================================
-        // UPDATE CATEGORY
-        // =====================================================
-
-        public async Task UpdateCategory(
-            int id,
-            CreateCategoryRequest dto,
-            CancellationToken cancellationToken = default)
+        try
         {
-            ArgumentNullException.ThrowIfNull(dto);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            if (!string.IsNullOrWhiteSpace(newImageUrl))
+                await _imageService.DeleteImageAsync(newImageUrl, "categories");
 
-
-            // -------------------------------------------------
-            // GET CATEGORY
-            // -------------------------------------------------
-
-            var category = await _context.Categories
-                .FirstOrDefaultAsync(
-                    c =>
-                        c.Id == id &&
-                        !c.IsDeleted,
-                    cancellationToken);
-
-
-            if (category is null)
-            {
-                throw new KeyNotFoundException(
-                    "الفئة غير متوفره.");
-            }
-
-
-            // -------------------------------------------------
-            // VALIDATION
-            // -------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(dto.NameEn))
-            {
-                throw new ArgumentException(
-                    "Category English name is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.NameAr))
-            {
-                throw new ArgumentException(
-                    "Category Arabic name is required.");
-            }
-
-
-            // -------------------------------------------------
-            // CHECK DUPLICATE NAME
-            // -------------------------------------------------
-
-            var exists = await _context.Categories
-                .AnyAsync(
-                    c =>
-                        c.Id != id &&
-                        !c.IsDeleted &&
-                        (
-                            c.NameEn == dto.NameEn ||
-                            c.NameAr == dto.NameAr
-                        ),
-                    cancellationToken);
-
-            if (exists)
-            {
-                throw new InvalidOperationException(
-                    "الفئة موجودة بالفعل.");
-            }
-
-
-            // -------------------------------------------------
-            // UPDATE BASIC DATA
-            // -------------------------------------------------
-
-            category.NameEn = dto.NameEn.Trim();
-            category.NameAr = dto.NameAr.Trim();
-
-
-            string? oldImageUrl = null;
-            string? newImageUrl = null;
-
-
-            // -------------------------------------------------
-            // NEW IMAGE
-            // -------------------------------------------------
-
-            if (dto.Image is not null)
-            {
-                oldImageUrl = category.ImageUrl;
-
-                newImageUrl =
-                    await _imageService.SaveImageAsync(
-                        dto.Image,
-                        "categories",
-                        cancellationToken);
-
-                category.ImageUrl = newImageUrl;
-            }
-
-
-            // -------------------------------------------------
-            // SAVE DATABASE
-            // -------------------------------------------------
-
-            try
-            {
-                await _context.SaveChangesAsync(
-                    cancellationToken);
-            }
-            catch
-            {
-                // Database failed after the new image was saved.
-                // Delete the new image so it does not remain orphaned.
-
-                if (!string.IsNullOrWhiteSpace(newImageUrl))
-                {
-                 await   _imageService.DeleteImageAsync(newImageUrl);
-                }
-
-                throw;
-            }
-
-
-            // -------------------------------------------------
-            // DELETE OLD IMAGE
-            // -------------------------------------------------
-
-            if (!string.IsNullOrWhiteSpace(oldImageUrl))
-            {
-              await  _imageService.DeleteImageAsync(oldImageUrl);
-            }
+            throw;
         }
 
+        if (!string.IsNullOrWhiteSpace(oldImageUrl))
+            await _imageService.DeleteImageAsync(oldImageUrl, "categories");
+    }
 
-        // =====================================================
-        // DELETE CATEGORY
-        // =====================================================
+    public async Task DeleteCategory(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var category = await _context.Categories
+            .FirstOrDefaultAsync(
+                c => c.Id == id && !c.IsDeleted,
+                cancellationToken);
 
-        public async Task DeleteCategory(
-            int id,
-            CancellationToken cancellationToken = default)
+        if (category is null)
+            throw new KeyNotFoundException("الفئة غير متوفره.");
+
+        var categoryImageUrl = category.ImageUrl;
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                cancellationToken);
+
+        try
         {
-            // -------------------------------------------------
-            // GET CATEGORY
-            // -------------------------------------------------
-
-            var category = await _context.Categories
-                .FirstOrDefaultAsync(
-                    c => c.Id == id,
+            // Bulk soft-delete products directly in SQL.
+            // This avoids loading every product into application memory.
+            await _context.Products
+                .Where(p => p.CategoryId == id && !p.IsDeleted)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(
+                        p => p.IsDeleted,
+                        true),
                     cancellationToken);
 
-
-            if (category is null)
-            {
-                throw new KeyNotFoundException(
-                    "الفئة غير متوفره.");
-            }
-
-
-      
-
-
-            // -------------------------------------------------
-            // GET ALL PRODUCTS OF CATEGORY
-            // -------------------------------------------------
-
-            var products = await _context.Products
-              
-                .Where(p => p.CategoryId == id&&!p.IsDeleted)
-                .ToListAsync(cancellationToken);
-
-
-         
-
-            // -------------------------------------------------
-            // DELETE PRODUCTS
-            // -------------------------------------------------
-
-            if (products.Count > 0)
-            {
-                products.ForEach(p =>
-                {
-                    p.IsDeleted=true;
-                });
-                _context.Products.UpdateRange(products);
-            }
-
-
-            // -------------------------------------------------
-            // DELETE CATEGORY
-            // -------------------------------------------------
-           string categoryImageUrl=category.ImageUrl;
             category.IsDeleted = true;
-            _context.Categories.Update(category);
 
+            await _context.SaveChangesAsync(cancellationToken);
 
-            // -------------------------------------------------
-            // SAVE DATABASE
-            // -------------------------------------------------
-
-            await _context.SaveChangesAsync(
-                cancellationToken);
-
-
-            // -------------------------------------------------
-            // DELETE CATEGORY IMAGE
-            // -------------------------------------------------
-
-            if (!string.IsNullOrWhiteSpace(categoryImageUrl))
-            {
-             await   _imageService.DeleteImageAsync(
-                    categoryImageUrl);
-            }
-
-
-         
+            await transaction.CommitAsync(cancellationToken);
         }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+
+        // Delete the physical file only after the DB operation succeeds.
+        if (!string.IsNullOrWhiteSpace(categoryImageUrl))
+            await _imageService.DeleteImageAsync(categoryImageUrl, "categories");
     }
 }

@@ -1,13 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
-using ImageMagick;
+﻿using ImageMagick;
+using Microsoft.AspNetCore.Http;
 
 namespace PharmacyAPI.Services;
 
 public sealed class ImageService
 {
-    private readonly string _uploadPath;
-    private readonly string _uploadUrlPrefix;
-
     private const int MaxImageDimension = 1600;
     private const int WebpQuality = 82;
 
@@ -21,296 +18,295 @@ public sealed class ImageService
             ".jfif"
         };
 
-    public ImageService(IConfiguration configuration)
+    private readonly string _uploadPath;
+    private readonly string _uploadUrlPrefix;
+    private readonly ILogger<ImageService> _logger;
+
+    public ImageService(
+        IConfiguration configuration,
+        ILogger<ImageService> logger)
     {
+        _logger = logger;
+
         _uploadPath =
-            Path.GetFullPath(
-                configuration["FileStorage:UploadPath"]
-                ?? "/var/www/uploads/LILLY");
+            configuration["FileStorage:UploadPath"]
+            ?? "/var/www/uploads/LILLY";
 
         _uploadUrlPrefix =
-            (
-                configuration["FileStorage:UploadUrlPrefix"]
-                ?? "/uploads/LILLY/"
-            ).TrimEnd('/');
+            configuration["FileStorage:UploadUrlPrefix"]
+            ?? "/uploads/LILLY";
     }
 
-    // ============================================================
-    // SAVE, RESIZE AND COMPRESS IMAGE
-    // ============================================================
+    // =========================================================
+    // SAVE IMAGE
+    // =========================================================
 
     public async Task<string> SaveImageAsync(
-        IFormFile image,
+        IFormFile file,
         string folder,
         CancellationToken cancellationToken = default)
     {
-        if (image is null || image.Length == 0)
-            throw new ArgumentException("الصورة مطلوبة");
+        ArgumentNullException.ThrowIfNull(file);
 
-        if (string.IsNullOrWhiteSpace(folder))
-            throw new ArgumentException("مجلد الصورة مطلوب");
+        if (file.Length <= 0)
+            throw new ArgumentException("Image file is empty.", nameof(file));
 
         var extension =
-            Path.GetExtension(image.FileName);
+            Path.GetExtension(file.FileName)
+                .ToLowerInvariant();
 
-        if (
-            string.IsNullOrWhiteSpace(extension) ||
-            !AllowedExtensions.Contains(extension)
-        )
+        if (!AllowedExtensions.Contains(extension))
         {
             throw new ArgumentException(
-                "نوع الصورة غير متوافر");
+                $"Unsupported image format: {extension}");
         }
 
-        folder = SanitizeFolder(folder);
+        var safeFolder = SanitizeFolder(folder);
 
-        var folderPath =
-            Path.GetFullPath(
-                Path.Combine(
-                    _uploadPath,
-                    folder));
+        var directory =
+            Path.Combine(_uploadPath, safeFolder);
 
-        // Ensure the destination stays inside upload root.
-        if (
-            !folderPath.StartsWith(
-                _uploadPath +
-                Path.DirectorySeparatorChar,
-                StringComparison.Ordinal)
-        )
-        {
-            throw new ArgumentException(
-                "مجلد الصورة غير صالح");
-        }
-
-        Directory.CreateDirectory(folderPath);
+        Directory.CreateDirectory(directory);
 
         var fileName =
             $"{Guid.NewGuid():N}.webp";
 
-        var filePath =
-            Path.Combine(
-                folderPath,
-                fileName);
+        var physicalPath =
+            Path.Combine(directory, fileName);
 
         try
         {
             await using var inputStream =
-                image.OpenReadStream();
+                new MemoryStream((int)Math.Min(file.Length, int.MaxValue));
 
-            // ====================================================
-            // LOAD IMAGE
-            // ====================================================
+            await file.CopyToAsync(
+                inputStream,
+                cancellationToken);
 
-            using var magickImage =
-                new MagickImage();
+            inputStream.Position = 0;
 
-            await magickImage.ReadAsync(
+            using var image = new MagickImage();
+
+            await image.ReadAsync(
                 inputStream,
                 cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            // ====================================================
-            // AUTO ORIENT
-            // ====================================================
+            // Apply EXIF orientation before checking dimensions.
+            image.AutoOrient();
 
-            magickImage.AutoOrient();
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // ====================================================
-            // RESIZE
-            // ====================================================
-
-            if (
-                magickImage.Width > MaxImageDimension ||
-                magickImage.Height > MaxImageDimension
-            )
+            // Resize only when necessary.
+            if (image.Width > MaxImageDimension ||
+                image.Height > MaxImageDimension)
             {
-                magickImage.Resize(
-                    new MagickGeometry(
-                        MaxImageDimension,
-                        MaxImageDimension)
-                    {
-                        IgnoreAspectRatio = false
-                    });
+                image.FilterType = FilterType.Lanczos;
+
+                image.Resize(
+                    MaxImageDimension,
+                    MaxImageDimension);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
+            // Remove EXIF/metadata that is unnecessary for ecommerce images.
+            image.Strip();
 
-            // ====================================================
-            // WEBP
-            // ====================================================
+            // WebP gives the frontend significantly smaller files.
+            image.Format = MagickFormat.WebP;
+            image.Quality = WebpQuality;
 
-            magickImage.Format =
-                MagickFormat.WebP;
-
-            magickImage.Quality =
-                WebpQuality;
-
-            // ====================================================
-            // SAVE
-            // ====================================================
-
-            await magickImage.WriteAsync(
-                filePath,
+            await image.WriteAsync(
+                physicalPath,
                 cancellationToken);
 
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return
-                $"{_uploadUrlPrefix}/{folder}/{fileName}";
+            return GetRelativePath(
+                safeFolder,
+                fileName);
         }
         catch
         {
-            // Remove incomplete output if processing fails.
-            try
-            {
-                if (File.Exists(filePath))
-                    File.Delete(filePath);
-            }
-            catch
-            {
-                // Do not hide the original exception.
-            }
-
+            TryDeletePhysicalFile(physicalPath);
             throw;
         }
     }
 
-    // ============================================================
-    // DELETE IMAGE
-    // ============================================================
+    // =========================================================
+    // DELETE ONE IMAGE
+    // =========================================================
 
     public Task DeleteImageAsync(
-        string? imageUrl)
+        string? imageUrl,
+        string folder,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(imageUrl))
             return Task.CompletedTask;
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
-            var relativePath =
-                GetRelativePath(imageUrl);
+            var fileName =
+                Path.GetFileName(
+                    imageUrl.Split(
+                        '?',
+                        StringSplitOptions.RemoveEmptyEntries)[0]);
 
-            if (relativePath is null)
+            if (string.IsNullOrWhiteSpace(fileName))
                 return Task.CompletedTask;
 
-            var filePath =
-                Path.GetFullPath(
-                    Path.Combine(
-                        _uploadPath,
-                        relativePath));
+            var safeFolder = SanitizeFolder(folder);
 
-            // Prevent deleting files outside upload root.
-            if (
-                !filePath.StartsWith(
-                    _uploadPath +
-                    Path.DirectorySeparatorChar,
-                    StringComparison.Ordinal)
-            )
+            var physicalPath =
+                Path.Combine(
+                    _uploadPath,
+                    safeFolder,
+                    fileName);
+
+            var fullUploadPath =
+                Path.GetFullPath(_uploadPath);
+
+            var fullFilePath =
+                Path.GetFullPath(physicalPath);
+
+            // Security check.
+            if (!fullFilePath.StartsWith(
+                    fullUploadPath,
+                    StringComparison.OrdinalIgnoreCase))
             {
+                _logger.LogWarning(
+                    "Blocked image deletion outside upload directory: {Path}",
+                    fullFilePath);
+
                 return Task.CompletedTask;
             }
 
-            if (File.Exists(filePath))
-                File.Delete(filePath);
+            TryDeletePhysicalFile(fullFilePath);
         }
-        catch
+        catch (Exception ex)
         {
-            // Image cleanup must not break other operations.
+            _logger.LogWarning(
+                ex,
+                "Failed to delete image: {ImageUrl}",
+                imageUrl);
         }
 
         return Task.CompletedTask;
     }
 
-    // ============================================================
-    // GET RELATIVE PATH
-    // ============================================================
+    // =========================================================
+    // DELETE MULTIPLE IMAGES
+    // =========================================================
 
-    private string? GetRelativePath(
-        string imageUrl)
+    public async Task DeleteImagesAsync(
+        IEnumerable<string>? imageUrls,
+        string folder,
+        CancellationToken cancellationToken = default)
     {
-        var value =
-            imageUrl.Trim();
+        if (imageUrls is null)
+            return;
 
-        var prefix =
-            _uploadUrlPrefix + "/";
+        var urls = imageUrls
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-        if (
-            !value.StartsWith(
-                prefix,
-                StringComparison.OrdinalIgnoreCase)
-        )
-        {
-            return null;
-        }
+        if (urls.Length == 0)
+            return;
 
-        var relativePath =
-            value[prefix.Length..];
-
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return null;
-
-        relativePath =
-            relativePath.Replace(
-                '/',
-                Path.DirectorySeparatorChar);
-
-        if (
-            Path.IsPathRooted(relativePath) ||
-            relativePath
-                .Split(Path.DirectorySeparatorChar)
-                .Any(segment =>
-                    segment is "." or "..")
-        )
-        {
-            return null;
-        }
-
-        return relativePath;
+        // File deletion is I/O-bound, so doing the independent
+        // deletions together is faster than sequential deletion.
+        await Task.WhenAll(
+            urls.Select(url =>
+                DeleteImageAsync(
+                    url,
+                    folder,
+                    cancellationToken)));
     }
 
-    // ============================================================
-    // SANITIZE FOLDER
-    // ============================================================
+    // =========================================================
+    // RELATIVE URL
+    // =========================================================
 
-    private static string SanitizeFolder(
-        string folder)
+    private string GetRelativePath(
+        string folder,
+        string fileName)
     {
-        folder =
-            folder.Trim();
+        return
+            $"{_uploadUrlPrefix.TrimEnd('/')}/" +
+            $"{folder}/" +
+            $"{fileName}";
+    }
 
-        if (
-            Path.IsPathRooted(folder) ||
-            folder.Contains(':')
-        )
-        {
+    // =========================================================
+    // FOLDER SANITIZATION
+    // =========================================================
+
+    private static string SanitizeFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
             throw new ArgumentException(
-                "مجلد الصورة غير صالح");
-        }
+                "Image folder cannot be empty.",
+                nameof(folder));
 
-        folder =
+        var sanitized =
             folder
+                .Trim()
                 .Replace('\\', '/')
                 .Trim('/');
 
-        var segments =
-            folder.Split('/');
-
-        if (
-            segments.Length == 0 ||
-            segments.Any(segment =>
-                string.IsNullOrWhiteSpace(segment) ||
-                segment is "." or ".." ||
-                segment.IndexOfAny(
-                    Path.GetInvalidFileNameChars()) >= 0)
-        )
+        if (sanitized.Length == 0 ||
+            sanitized.Contains("..", StringComparison.Ordinal))
         {
             throw new ArgumentException(
-                "مجلد الصورة غير صالح");
+                "Invalid image folder.",
+                nameof(folder));
+        }
+
+        var segments =
+            sanitized.Split(
+                '/',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var segment in segments)
+        {
+            if (segment is "." or "..")
+            {
+                throw new ArgumentException(
+                    "Invalid image folder.",
+                    nameof(folder));
+            }
+
+            foreach (var character in Path.GetInvalidFileNameChars())
+            {
+                if (segment.Contains(character))
+                {
+                    throw new ArgumentException(
+                        "Invalid image folder.",
+                        nameof(folder));
+                }
+            }
         }
 
         return Path.Combine(segments);
+    }
+
+    // =========================================================
+    // PHYSICAL DELETE
+    // =========================================================
+
+    private void TryDeletePhysicalFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to delete image file: {Path}",
+                path);
+        }
     }
 }

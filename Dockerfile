@@ -31,7 +31,7 @@ RUN apt-get update \
         libfontconfig1 \
         libfreetype6 \
         libpng16-16 \
-        libjpeg62-turbo \
+       
         libwebp7 \
         libx11-6 \
         libxcb1 \

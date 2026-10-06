@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LilyAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.0+08bb4e266de61a91cfe143bab4fb54836fc75ebd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.0+630bd42771eb0c27e5e55a1b7737b93dd5779edd")]
 [assembly: System.Reflection.AssemblyProductAttribute("LilyAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LilyAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.0.0.0")]

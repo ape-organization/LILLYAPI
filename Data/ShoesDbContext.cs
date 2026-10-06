@@ -277,7 +277,12 @@ namespace PharmacyAPI.Data
                 // This is especially important because only active
                 // variants are loaded by the optimized services.
                 // ----------------------------------------------------
-
+                entity.HasIndex(v => new
+                {
+                    v.ProductId,
+                    v.SizeId,
+                    v.HeelSizeId
+                });
                 entity.HasIndex(v => new
                 {
                     v.ProductId,
@@ -510,6 +515,7 @@ namespace PharmacyAPI.Data
                 entity.HasIndex(c => c.PhoneNumber)
                     .IsUnique();
             });
+
 
             // ========================================================
             // SLIDER

@@ -48,7 +48,7 @@ namespace PharmacyAPI.Models
         // VARIANTS
         // =========================
 
-        public ICollection<ProductVariant> Variants { get; set; }
+        public List<ProductVariant> Variants { get; set; }
             = new List<ProductVariant>();
 
         // =========================

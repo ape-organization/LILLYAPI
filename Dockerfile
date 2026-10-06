@@ -25,6 +25,20 @@ RUN dotnet publish "LilyAPI.csproj" \
 # =========================
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
+# Native libraries required by SkiaSharp
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libfontconfig1 \
+        libfreetype6 \
+        libpng16-16 \
+        libjpeg62-turbo \
+        libwebp7 \
+        libx11-6 \
+        libxcb1 \
+        libxext6 \
+        libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=build /app/publish .

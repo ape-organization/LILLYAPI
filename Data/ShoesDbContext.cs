@@ -178,8 +178,11 @@ namespace PharmacyAPI.Data
                 // Unique category name
                 // ----------------------------------------------------
 
-                entity.HasIndex(c => c.NameEn)
-                    .IsUnique();
+                
+                
+    entity.HasIndex(c => c.NameEn)
+    .IsUnique()
+    .HasFilter("[IsDeleted] = 0");
 
                 // ----------------------------------------------------
                 // Category listing excluding deleted categories

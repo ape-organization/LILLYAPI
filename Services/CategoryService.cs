@@ -59,59 +59,60 @@ public sealed class CategoryService : ICategoryService
         CreateCategoryRequest dto,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        var nameEn = dto.NameEn?.Trim();
-        var nameAr = dto.NameAr?.Trim();
-
-        if (string.IsNullOrWhiteSpace(nameEn))
-            throw new ArgumentException("Category English name is required.");
-
-        if (string.IsNullOrWhiteSpace(nameAr))
-            throw new ArgumentException("Category Arabic name is required.");
-
-        var exists = await _context.Categories
-            .AsNoTracking()
-            .AnyAsync(
-                c =>
-                    !c.IsDeleted &&
-                    (c.NameEn == nameEn || c.NameAr == nameAr),
-                cancellationToken);
-
-        if (exists)
-            throw new InvalidOperationException("الفئة موجودة بالفعل.");
-
-        var category = new Category
-        {
-            NameEn = nameEn,
-            NameAr = nameAr,
-            IsDeleted = false
-        };
-
-        if (dto.Image is not null)
-        {
-            category.ImageUrl = await _imageService.SaveImageAsync(
-                dto.Image,
-                "categories",
-                cancellationToken);
-        }
-
         try
         {
+            ArgumentNullException.ThrowIfNull(dto);
+
+            var nameEn = dto.NameEn?.Trim();
+            var nameAr = dto.NameAr?.Trim();
+
+            if (string.IsNullOrWhiteSpace(nameEn))
+                throw new ArgumentException("Category English name is required.");
+
+            if (string.IsNullOrWhiteSpace(nameAr))
+                throw new ArgumentException("Category Arabic name is required.");
+
+            var exists = await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(
+                    c =>
+                        !c.IsDeleted &&
+                        (c.NameEn == nameEn || c.NameAr == nameAr),
+                    cancellationToken);
+
+            if (exists)
+                throw new InvalidOperationException("الفئة موجودة بالفعل.");
+
+            var category = new Category
+            {
+                NameEn = nameEn,
+                NameAr = nameAr,
+                IsDeleted = false
+            };
+
+            if (dto.Image is not null)
+            {
+                category.ImageUrl = await _imageService.SaveImageAsync(
+                    dto.Image,
+                    "categories",
+                    cancellationToken);
+            }
+
             _context.Categories.Add(category);
 
-            await _context.SaveChangesAsync(cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
+           
+
+            return category;
         }
-        catch
+        catch (Exception e)
         {
-            if (!string.IsNullOrWhiteSpace(category.ImageUrl))
-                await _imageService.DeleteImageAsync(category.ImageUrl,"categories");
-
-            throw;
+            Console.WriteLine($"An error occurred while creating the category: {e.Message}");
+            return null;
         }
-
-        return category;
     }
+
+
 
     public async Task UpdateCategory(
         int id,

@@ -3,12 +3,24 @@
   "WorkspaceRootPath": "D:\\GitHub\\LILLYAPI\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\migrations\\20261006152456_cat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:migrations\\20261006152456_cat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\services\\categoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:services\\categoryservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\services\\imageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:services\\imageservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\data\\shoesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:data\\shoesdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|d:\\github\\lillyapi\\services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{90056D33-2D23-4498-EF1B-DCB1B40B82FD}|LilyAPI.csproj|solutionrelative:services\\productservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,7 +30,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 7,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -46,20 +58,59 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "20261006152456_cat.cs",
+              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Migrations\\20261006152456_cat.cs",
+              "RelativeDocumentMoniker": "Migrations\\20261006152456_cat.cs",
+              "ToolTip": "D:\\GitHub\\LILLYAPI\\Migrations\\20261006152456_cat.cs",
+              "RelativeToolTip": "Migrations\\20261006152456_cat.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-06T15:24:57.766Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ShoesDbContext.cs",
+              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Data\\ShoesDbContext.cs",
+              "RelativeDocumentMoniker": "Data\\ShoesDbContext.cs",
+              "ToolTip": "D:\\GitHub\\LILLYAPI\\Data\\ShoesDbContext.cs",
+              "RelativeToolTip": "Data\\ShoesDbContext.cs",
+              "ViewState": "AgIAAP4BAAAAAAAAAAAAwAYCAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-06T15:16:36.505Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "CategoryService.cs",
+              "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\CategoryService.cs",
+              "RelativeDocumentMoniker": "Services\\CategoryService.cs",
+              "ToolTip": "D:\\GitHub\\LILLYAPI\\Services\\CategoryService.cs",
+              "RelativeToolTip": "Services\\CategoryService.cs",
+              "ViewState": "AgIAADUAAAAAAAAAAAAAADkAAAAEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-06T15:10:54.375Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "ImageService.cs",
               "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\ImageService.cs",
               "RelativeDocumentMoniker": "Services\\ImageService.cs",
               "ToolTip": "D:\\GitHub\\LILLYAPI\\Services\\ImageService.cs",
               "RelativeToolTip": "Services\\ImageService.cs",
-              "ViewState": "AgIAANMCAAAAAAAAAAAswOcCAAABAAAAAAAAAA==",
+              "ViewState": "AgIAABcAAAAAAAAAAAAAACUAAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-06T12:51:55.567Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 4,
               "Title": "ProductService.cs",
               "DocumentMoniker": "D:\\GitHub\\LILLYAPI\\Services\\ProductService.cs",
               "RelativeDocumentMoniker": "Services\\ProductService.cs",

@@ -449,7 +449,7 @@ public sealed class ProductService : IProductService
                 .Where(p =>
                     ids.Contains(p.Id) &&
                     !p.IsDeleted)
-
+                 .Include(p => p.Images)
                 .Include(p => p.Variants
                     .Where(v => v.IsActive))
                     .ThenInclude(v => v.Size)
@@ -457,9 +457,10 @@ public sealed class ProductService : IProductService
                 .Include(p => p.Variants
                     .Where(v => v.IsActive))
                     .ThenInclude(v => v.HeelSize)
+                   
 
                 .AsSplitQuery()
-
+             
                 .ToListAsync(
                     cancellationToken);
 

@@ -2422,6 +2422,11 @@
           "quantity": {
             "type": "integer",
             "format": "int32"
+          },
+          "displayedUnitPrice": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         },
         "additionalProperties": false

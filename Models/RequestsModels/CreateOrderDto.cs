@@ -36,5 +36,17 @@
         public int? ProductVariantId { get; set; }
 
         public int Quantity { get; set; }
+        // Price displayed to the customer on checkout.
+        // Used ONLY to detect price changes.
+        public decimal? DisplayedUnitPrice { get; set; }
+    }
+
+    public class PriceChangeItemDto
+    {
+        public int ProductId { get; set; }
+
+        public decimal OldPrice { get; set; }
+
+        public decimal NewPrice { get; set; }
     }
 }

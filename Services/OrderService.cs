@@ -1,4 +1,5 @@
 ﻿
+using LilyAPI.Services;
 using Microsoft.EntityFrameworkCore;
 using PharmacyAPI.Data;
 using PharmacyAPI.Models;
@@ -60,8 +61,8 @@ namespace PharmacyAPI.Services
         // =========================================================
 
         public async Task<Order> CreateOrder(
-            CreateOrderDto dto,
-            CancellationToken cancellationToken = default)
+      CreateOrderDto dto,
+      CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(dto);
 
@@ -143,6 +144,18 @@ namespace PharmacyAPI.Services
                     throw new InvalidOperationException(
                         "الاختيار الخاص بالمنتج غير صحيح.");
                 }
+
+
+                // =================================================
+                // VALIDATE DISPLAYED PRICE
+                // =================================================
+
+                if (item.DisplayedUnitPrice.HasValue &&
+                    item.DisplayedUnitPrice.Value < 0)
+                {
+                    throw new InvalidOperationException(
+                        "سعر المنتج غير صحيح.");
+                }
             }
 
 
@@ -166,7 +179,11 @@ namespace PharmacyAPI.Services
                             g.Key.ProductVariantId,
 
                         Quantity =
-                            g.Sum(x => x.Quantity)
+                            g.Sum(x => x.Quantity),
+
+                        DisplayedUnitPrice =
+                            g.Select(x => x.DisplayedUnitPrice)
+                                .FirstOrDefault()
                     })
                     .ToList();
 
@@ -199,7 +216,8 @@ namespace PharmacyAPI.Services
             //
             // Only active variants are loaded.
             //
-            // No stock is changed here.
+            // No stock is checked, decreased,
+            // or changed here.
             //
             // =====================================================
 
@@ -230,6 +248,85 @@ namespace PharmacyAPI.Services
 
                 throw new KeyNotFoundException(
                     $"المنتج {missingProductId} غير موجود.");
+            }
+
+
+            // =====================================================
+            // CHECK PRICE CHANGES
+            // =====================================================
+            //
+            // The customer sent the price that was displayed
+            // on the checkout page.
+            //
+            // We compare it with the CURRENT database price.
+            //
+            // The displayed price is NEVER used as the actual
+            // order price.
+            //
+            // =====================================================
+
+            var priceChanges =
+                new List<PriceChangeItemDto>();
+
+
+            foreach (var requestedItem in requestedItems)
+            {
+                var product =
+                    products[requestedItem.ProductId];
+
+
+                var currentPrice =
+                    CalculateSellingPrice(product);
+
+
+                var displayedPrice =
+                    requestedItem.DisplayedUnitPrice;
+
+
+                // -------------------------------------------------
+                // If the frontend did not send a displayed price,
+                // do not block the order.
+                //
+                // The backend price is still authoritative.
+                // -------------------------------------------------
+
+                if (!displayedPrice.HasValue)
+                {
+                    continue;
+                }
+
+
+                // -------------------------------------------------
+                // Compare prices
+                // -------------------------------------------------
+
+                if (displayedPrice.Value != currentPrice)
+                {
+                    priceChanges.Add(
+                        new PriceChangeItemDto
+                        {
+                            ProductId =
+                                product.Id,
+
+                            OldPrice =
+                                displayedPrice.Value,
+
+                            NewPrice =
+                                currentPrice
+                        });
+                }
+            }
+
+
+            // =====================================================
+            // STOP ORDER IF PRICE CHANGED
+            // =====================================================
+
+            if (priceChanges.Count > 0)
+            {
+                throw new KeyNotFoundException(
+                    "تغير سعر بعض المنتجات. يرجى مراجعة الطلب قبل إتمام الشراء."
+                    );
             }
 
 
@@ -430,7 +527,15 @@ namespace PharmacyAPI.Services
 
 
                 // =================================================
-                // CALCULATE SELLING PRICE
+                // CALCULATE CURRENT SELLING PRICE
+                // =================================================
+                //
+                // IMPORTANT:
+                //
+                // This is the actual price used for the order.
+                //
+                // It is NOT the price sent by Angular.
+                //
                 // =================================================
 
                 var unitPrice =
@@ -503,7 +608,6 @@ namespace PharmacyAPI.Services
 
             return order;
         }
-
 
         // =========================================================
         // CALCULATE SELLING PRICE
@@ -1083,6 +1187,7 @@ namespace PharmacyAPI.Services
             public int? ProductVariantId { get; init; }
 
             public int Quantity { get; init; }
+            public decimal? DisplayedUnitPrice { get; set; }
         }
     }
 }

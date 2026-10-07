@@ -342,6 +342,9 @@ public sealed class ProductService : IProductService
             : MapAllProduct(product);
     }
 
+
+
+
     // ============================================================
     // SEARCH PRODUCTS
     // ============================================================
@@ -387,9 +390,42 @@ public sealed class ProductService : IProductService
     // GET PRODUCTS BY IDS
     // ============================================================
 
+    //public async Task<List<ProductResponseDto>> GetProductsByIds(
+    //    List<int> productIds,
+    //    CancellationToken cancellationToken = default)
+    //{
+    //    if (productIds is null ||
+    //        productIds.Count == 0)
+    //    {
+    //        return [];
+    //    }
+
+    //    var ids =
+    //        productIds
+    //            .Where(id => id > 0)
+    //            .Distinct()
+    //            .ToArray();
+
+    //    if (ids.Length == 0)
+    //        return [];
+
+    //    return await _context.Products
+    //        .AsNoTracking()
+    //        .Where(p =>
+    //            ids.Contains(p.Id) &&
+    //            !p.IsDeleted)
+
+    //        .Select(ProductListProjection)
+
+    //        .ToListAsync(
+    //            cancellationToken);
+    //}
+
+
+
     public async Task<List<ProductResponseDto>> GetProductsByIds(
-        List<int> productIds,
-        CancellationToken cancellationToken = default)
+    List<int> productIds,
+    CancellationToken cancellationToken = default)
     {
         if (productIds is null ||
             productIds.Count == 0)
@@ -406,16 +442,30 @@ public sealed class ProductService : IProductService
         if (ids.Length == 0)
             return [];
 
-        return await _context.Products
-            .AsNoTracking()
-            .Where(p =>
-                ids.Contains(p.Id) &&
-                !p.IsDeleted)
+        var products =
+            await _context.Products
+                .AsNoTracking()
 
-            .Select(ProductListProjection)
+                .Where(p =>
+                    ids.Contains(p.Id) &&
+                    !p.IsDeleted)
 
-            .ToListAsync(
-                cancellationToken);
+                .Include(p => p.Variants
+                    .Where(v => v.IsActive))
+                    .ThenInclude(v => v.Size)
+
+                .Include(p => p.Variants
+                    .Where(v => v.IsActive))
+                    .ThenInclude(v => v.HeelSize)
+
+                .AsSplitQuery()
+
+                .ToListAsync(
+                    cancellationToken);
+
+        return products
+            .Select(MapAllProduct)
+            .ToList();
     }
 
     // ============================================================

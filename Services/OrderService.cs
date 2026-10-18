@@ -11,6 +11,9 @@ namespace PharmacyAPI.Services
 {
     public interface IOrderService
     {
+         Task<bool> CompleteOrder(
+          int id,
+          CancellationToken cancellationToken = default);
         Task<Order> CreateOrder(
             CreateOrderDto dto,
             CancellationToken cancellationToken = default);
@@ -412,7 +415,7 @@ namespace PharmacyAPI.Services
                         now,
 
                     Status =
-                        OrderStatus.Confirmed,
+                        OrderStatus.Pending,
 
                     TotalAmount =
                         0
@@ -904,6 +907,57 @@ namespace PharmacyAPI.Services
             return true;
         }
 
+        public async Task<bool> CompleteOrder(
+           int id,
+           CancellationToken cancellationToken = default)
+        {
+            if (id <= 0)
+            {
+                return false;
+            }
+
+
+            var order =
+                await _context.Orders
+                    .FirstOrDefaultAsync(
+                        o => o.Id == id,
+                        cancellationToken);
+
+
+            if (order == null)
+            {
+                return false;
+            }
+
+
+            // =================================================
+            // ALREADY COMPLETED
+            // =================================================
+
+            if (order.Status ==
+                OrderStatus.Confirmed)
+            {
+                return true;
+            }
+
+
+            // =================================================
+            // COMPLETE ORDER
+            // =================================================
+
+            order.Status =
+                OrderStatus.Confirmed;
+
+            // =================================================
+            // SAVE
+            // =================================================
+
+            await _context.SaveChangesAsync(
+                cancellationToken);
+
+
+            return true;
+        }
 
         // =========================================================
         // CURRENT MONTH DASHBOARD

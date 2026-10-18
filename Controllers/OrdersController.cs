@@ -255,5 +255,44 @@ namespace PharmacyAPI.Controllers
                 });
             }
         }
+
+
+        [HttpPut("{id:int}/complete")]
+        public async Task<IActionResult> CompleteOrder(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result =
+                    await _orderService.CancelOrder(
+                        id,
+                        cancellationToken);
+
+                if (!result)
+                {
+                    return NotFound(new
+                    {
+                        message = "الطلب غير موجود"
+                    });
+                }
+
+                return Ok(new
+                {
+                    message =
+                        "تم تاكيد الطلب بنجاح"
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+
+
+
     }
 }

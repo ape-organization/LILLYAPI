@@ -848,7 +848,8 @@ public sealed class ProductService : IProductService
                         SizeId = variantDto.SizeId,
                         HeelSizeId = variantDto.HeelSizeId,
                         StockQuantity = VariantDefaultStock,
-                        IsActive = true
+                        IsActive = true,
+                        InStock = variantDto.IsInStock
                     });
                 }
             }
@@ -1221,7 +1222,8 @@ public sealed class ProductService : IProductService
                     v =>
                         BuildVariantKey(
                             v.SizeId,
-                            v.HeelSizeId));
+                            v.HeelSizeId,
+                            v.InStock));
 
         // --------------------------------------------------------
         // TRACK INCOMING VARIANT KEYS
@@ -1230,7 +1232,7 @@ public sealed class ProductService : IProductService
         var incomingKeys =
             new HashSet<(
                 int? SizeId,
-                int? HeelSizeId)>();
+                int? HeelSizeId, bool? inStock)>();
 
         // --------------------------------------------------------
         // UPDATE EXISTING / ADD NEW
@@ -1241,7 +1243,9 @@ public sealed class ProductService : IProductService
             var key =
                 BuildVariantKey(
                     variantDto.SizeId,
-                    variantDto.HeelSizeId);
+                    variantDto.HeelSizeId,
+                    variantDto.IsInStock
+                    );
 
             incomingKeys.Add(key);
 
@@ -1282,7 +1286,9 @@ public sealed class ProductService : IProductService
                         VariantDefaultStock,
 
                     IsActive =
-                        true
+                        true,
+                    InStock =
+                        variantDto.IsInStock
                 });
         }
 
@@ -1295,7 +1301,9 @@ public sealed class ProductService : IProductService
             var key =
                 BuildVariantKey(
                     existingVariant.SizeId,
-                    existingVariant.HeelSizeId);
+                    existingVariant.HeelSizeId,
+                    existingVariant.InStock
+                    );
 
             if (!incomingKeys.Contains(key))
             {
@@ -1387,31 +1395,15 @@ public sealed class ProductService : IProductService
                 "A valid category is required.");
         }
 
-        var normalizedName = name.Trim();
-
-        // UNION ALL makes product-name and category validation
-        // one SQL round-trip instead of two remote DB round-trips.
-        var validationResults = await _context.Products
-            .AsNoTracking()
-            .Where(p =>
-                !p.IsDeleted &&
-                p.NameEn == normalizedName &&
-                (!currentId.HasValue || p.Id != currentId.Value))
-            .Select(_ => new { Type = 1, Id = 0 })
-            .Concat(
-                _context.Categories
+        var validationResults = await  _context.Categories
                     .AsNoTracking()
                     .Where(c =>
                         c.Id == categoryId &&
                         !c.IsDeleted)
-                    .Select(_ => new { Type = 2, Id = 0 }))
+                    .Select(_ => new { Type = 2, Id = 0 })
             .ToListAsync(cancellationToken);
 
-        if (validationResults.Any(x => x.Type == 1))
-        {
-            throw new InvalidOperationException(
-                "A product with this name already exists.");
-        }
+     
 
         if (!validationResults.Any(x => x.Type == 2))
         {
@@ -1551,17 +1543,6 @@ public sealed class ProductService : IProductService
     // VALIDATE VARIANTS
     // ============================================================
 
-    // ============================================================
-    // VALIDATE VARIANTS
-    // ============================================================
-
-    // ============================================================
-    // VALIDATE VARIANTS
-    // ============================================================
-
-    // ============================================================
-    // VALIDATE VARIANTS
-    // ============================================================
 
     private async Task ValidateVariants(
         List<ProductVariantDto>? variants,
@@ -1570,7 +1551,7 @@ public sealed class ProductService : IProductService
         if (variants is null || variants.Count == 0)
             return;
 
-        var keys = new HashSet<(int? SizeId, int? HeelSizeId)>();
+        var keys = new HashSet<(int? SizeId, int? HeelSizeId, bool? inStock)>();
         var sizeIds = new HashSet<int>();
         var heelSizeIds = new HashSet<int>();
 
@@ -1585,7 +1566,8 @@ public sealed class ProductService : IProductService
 
             var key = BuildVariantKey(
                 variant.SizeId,
-                variant.HeelSizeId);
+                variant.HeelSizeId,
+                variant.IsInStock);
 
             if (!keys.Add(key))
             {
@@ -1723,13 +1705,14 @@ public sealed class ProductService : IProductService
 
     private static (
         int? SizeId,
-        int? HeelSizeId) BuildVariantKey(
+        int? HeelSizeId, bool? inStock) BuildVariantKey(
             int? sizeId,
-            int? heelSizeId)
+            int? heelSizeId,
+            bool? inStock)
     {
         return (
             sizeId,
-            heelSizeId);
+            heelSizeId,inStock);
     }
 
     // ============================================================
@@ -1831,6 +1814,8 @@ public sealed class ProductService : IProductService
 
                                 SizeId =
                                     v.SizeId,
+                                IsInStock=
+                                    v.InStock,
 
                                 SizeName =
                                     v.Size?.IsActive == true

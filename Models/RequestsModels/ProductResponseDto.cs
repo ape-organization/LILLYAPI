@@ -79,6 +79,7 @@
 
         public string? SizeName { get; set; }
 
+        public bool? IsInStock { get; set; }
         public int? HeelSizeId { get; set; }
 
         public string? HeelSizeName { get; set; }

@@ -62,5 +62,7 @@
         public int? HeelSizeId { get; set; }
 
         public int StockQuantity { get; set; }
+
+        public bool IsInStock { get; set; } = true;
     }
 }

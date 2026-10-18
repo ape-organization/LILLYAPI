@@ -34,5 +34,6 @@
 
         public int StockQuantity { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool InStock { get; set; } = true;
     }
 }

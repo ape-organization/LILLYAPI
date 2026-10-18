@@ -17,7 +17,7 @@ namespace PharmacyAPI.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -580,6 +580,9 @@ namespace PharmacyAPI.Migrations
 
                     b.Property<int?>("HeelSizeId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("InStock")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");

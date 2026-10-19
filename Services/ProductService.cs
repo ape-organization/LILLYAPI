@@ -219,6 +219,7 @@ public sealed class ProductService : IProductService
             Page = page,
 
             PageSize = PageSize,
+            HasMore= page * PageSize < totalCount,
 
             TotalCount = totalCount,
 

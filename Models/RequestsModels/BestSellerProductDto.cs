@@ -17,6 +17,7 @@
         public decimal DiscountedPrice { get; set; }
 
         public decimal DiscountPercentage { get; set; }
+        public bool hasVariants { get; set; }
 
         public bool IsInStock { get; set; }
 

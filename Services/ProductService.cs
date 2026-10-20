@@ -85,15 +85,18 @@ public sealed class ProductService : IProductService
     private readonly ShoesDbContext _context;
     private readonly ILogger<ProductService> _logger;
     private readonly ImageService _imageService;
+    private readonly IEmailService _emailService;
 
     public ProductService(
         ShoesDbContext context,
         ILogger<ProductService> logger,
-        ImageService imageService)
+        ImageService imageService,
+        IEmailService emailService)
     {
         _context = context;
         _logger = logger;
         _imageService = imageService;
+        _emailService = emailService;
     }
 
     // ============================================================
@@ -506,6 +509,7 @@ public sealed class ProductService : IProductService
     {
         try
         {
+            
             var fromDate =
                 DateTime.UtcNow.AddMonths(-1);
 
@@ -675,7 +679,11 @@ public sealed class ProductService : IProductService
             {
                 continue;
             }
-
+            var activeVariants =
+           product.Variants?
+               .Where(IsVisibleVariant)
+               .ToList()
+           ?? [];
             result.Add(
                 new BestSellerProductDto
                 {
@@ -693,6 +701,7 @@ public sealed class ProductService : IProductService
 
                     ActualPrice =
                         0,
+                    hasVariants=activeVariants.Count > 0,
 
                     StockQuantity =
                         ProductDefaultStock,

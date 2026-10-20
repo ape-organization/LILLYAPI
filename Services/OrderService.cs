@@ -51,12 +51,13 @@ namespace PharmacyAPI.Services
     public sealed class OrderService : IOrderService
     {
         private readonly ShoesDbContext _context;
+        private readonly  IEmailService _emailService;
 
-
-        public OrderService(ShoesDbContext context)
+        public OrderService(ShoesDbContext context, IEmailService emailService)
         {
-            _context = context;
-        }
+                _context = context;
+                _emailService = emailService;
+            }
 
 
         // =========================================================
@@ -607,7 +608,17 @@ namespace PharmacyAPI.Services
 
             await _context.SaveChangesAsync(
                 cancellationToken);
-
+            //send email to admin
+            try
+            {
+                _emailService.SendEmailAsync("ereny.karam.noshy@gmail.com","استلام طلب جديد", $"طلب جديد باسم {client.Name}." +
+                    $" رقم الطلب: {order.Id}, اجمالي الطلب: {order.TotalAmount:C}.");
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                Console.WriteLine($"Failed to send email: {ex.Message}");
+            }
 
             return order;
         }

@@ -1,6 +1,8 @@
 ﻿
-using MailKit.Net.Smtp;
-using MailKit.Security;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using MailKit;
 using MimeKit;
 
 namespace PharmacyAPI.Services
@@ -14,13 +16,16 @@ namespace PharmacyAPI.Services
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
+        private readonly HttpClient _httpClient;
 
         public EmailService(
             IConfiguration configuration,
-            ILogger<EmailService> logger)
+            ILogger<EmailService> logger,
+            HttpClient httpClient)
         {
             _configuration = configuration;
             _logger = logger;
+            _httpClient = httpClient;
         }
 
         public async Task SendEmailAsync(
@@ -28,36 +33,29 @@ namespace PharmacyAPI.Services
             string subject,
             string body)
         {
-            // =====================================================
-            // LOAD CONFIGURATION
-            // =====================================================
+            var apiToken =
+                _configuration["HostingerMail:ApiToken"];
 
-            var host = _configuration["EmailSettings:SmtpHost"];
-            var portValue = _configuration["EmailSettings:SmtpPort"];
-            var username = _configuration["EmailSettings:Username"];
-            var password = _configuration["EmailSettings:Password"];
-            var senderEmail = _configuration["EmailSettings:SenderEmail"];
-            var senderName = _configuration["EmailSettings:SenderName"];
+            var mailboxResourceId =
+                _configuration["HostingerMail:MailboxResourceId"];
 
-            if (string.IsNullOrWhiteSpace(host))
+            var senderEmail =
+                _configuration["HostingerMail:SenderEmail"];
+
+            var senderName =
+                _configuration["HostingerMail:SenderName"];
+
+            if (string.IsNullOrWhiteSpace(apiToken))
                 throw new InvalidOperationException(
-                    "EmailSettings:SmtpHost is missing.");
+                    "HostingerMail:ApiToken is missing.");
 
-            if (!int.TryParse(portValue, out var port))
+            if (string.IsNullOrWhiteSpace(mailboxResourceId))
                 throw new InvalidOperationException(
-                    "EmailSettings:SmtpPort is missing or invalid.");
-
-            if (string.IsNullOrWhiteSpace(username))
-                throw new InvalidOperationException(
-                    "EmailSettings:Username is missing.");
-
-            if (string.IsNullOrWhiteSpace(password))
-                throw new InvalidOperationException(
-                    "EmailSettings:Password is missing.");
+                    "HostingerMail:MailboxResourceId is missing.");
 
             if (string.IsNullOrWhiteSpace(senderEmail))
                 throw new InvalidOperationException(
-                    "EmailSettings:SenderEmail is missing.");
+                    "HostingerMail:SenderEmail is missing.");
 
             if (string.IsNullOrWhiteSpace(to))
                 throw new ArgumentException(
@@ -69,88 +67,69 @@ namespace PharmacyAPI.Services
                     "Recipient email address is invalid.",
                     nameof(to));
 
-            // =====================================================
-            // BUILD EMAIL
-            // =====================================================
-
-            var email = new MimeMessage();
-
-            email.From.Add(
-                new MailboxAddress(
-                    string.IsNullOrWhiteSpace(senderName)
-                        ? "Lily Store"
-                        : senderName,
-                    senderEmail));
-
-            email.To.Add(recipient);
-            email.Subject = subject ?? string.Empty;
-
-            email.Body = new TextPart("html")
+            // Hostinger sends from the authorized mailbox.
+            // Confirm that the configured address matches it.
+            var email = new
             {
-                Text = body ?? string.Empty
+                to = new[] { recipient.Address },
+                displayName = string.IsNullOrWhiteSpace(senderName)
+                    ? "Lily Store"
+                    : senderName,
+                subject = subject ?? string.Empty,
+                html = body ?? string.Empty
             };
 
-            // =====================================================
-            // SMTP CONNECTION AND SENDING
-            // =====================================================
+            var requestUrl =
+                "https://api.mail.hostinger.com/api/v1/mailboxes/" +
+                Uri.EscapeDataString(mailboxResourceId) +
+                "/send";
 
-            using var smtp = new SmtpClient();
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                requestUrl);
 
-            smtp.Timeout = 20000;
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue("Bearer", apiToken);
+
+            request.Content = JsonContent.Create(email);
 
             try
             {
                 _logger.LogInformation(
-                    "Connecting to SMTP host {Host} on port {Port}.",
-                    host,
-                    port);
+                    "Sending email to {Recipient} through Hostinger Mail API.",
+                    recipient.Address);
 
-                var securityOption = port switch
+                using var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    465 => SecureSocketOptions.SslOnConnect,
-                    587 => SecureSocketOptions.StartTls,
-                    _ => SecureSocketOptions.Auto
-                };
+                    var responseBody =
+                        await response.Content.ReadAsStringAsync();
 
-                await smtp.ConnectAsync(
-                    host,
-                    port,
-                    securityOption);
+                    _logger.LogError(
+                        "Hostinger Mail API failed. Status: {StatusCode}. " +
+                        "Response: {Response}",
+                        (int)response.StatusCode,
+                        responseBody);
 
-                await smtp.AuthenticateAsync(
-                    username,
-                    password);
-
-                await smtp.SendAsync(email);
+                    throw new HttpRequestException(
+                        $"Hostinger Mail API returned HTTP " +
+                        $"{(int)response.StatusCode} " +
+                        $"({response.StatusCode}).");
+                }
 
                 _logger.LogInformation(
                     "Email sent successfully to {Recipient}.",
-                    to);
+                    recipient.Address);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Failed to send email to {Recipient}.",
-                    to);
+                    "Failed to send email to {Recipient} through Hostinger.",
+                    recipient.Address);
 
                 throw;
-            }
-            finally
-            {
-                if (smtp.IsConnected)
-                {
-                    try
-                    {
-                        await smtp.DisconnectAsync(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "SMTP disconnection failed.");
-                    }
-                }
             }
         }
     }

@@ -533,9 +533,9 @@ namespace PharmacyAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
-
                     b.HasIndex("NameEn");
+
+                    b.HasIndex("CategoryId", "IsDeleted", "CreatedAt");
 
                     b.HasIndex("IsDeleted", "CategoryId", "Id");
 

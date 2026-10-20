@@ -56,7 +56,7 @@ builder.Services.AddScoped<ISliderService, SliderService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<ISizeService, SizeService>();
 builder.Services.AddScoped<IHeelSizeService, HeelSizeService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient<IEmailService, EmailService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

@@ -3,7 +3,6 @@ using PharmacyAPI.Data;
 using PharmacyAPI.Models;
 using PharmacyAPI.Models.RequestsModels;
 using PharmacyAPI.Models.Responses;
-using System.Diagnostics;
 using System.Linq.Expressions;
 
 namespace PharmacyAPI.Services;
@@ -82,6 +81,8 @@ public sealed class ProductService : IProductService
     private const int NewArrivalLimit = 30;
     private const int RelatedProductsLimit = 30;
 
+    private const string LikeEscapeCharacter = "\\";
+
     private readonly ShoesDbContext _context;
     private readonly ILogger<ProductService> _logger;
     private readonly ImageService _imageService;
@@ -106,67 +107,66 @@ public sealed class ProductService : IProductService
     // Used by:
     // - GetProducts
     // - GetProductsByName
-    // - GetProductsByIds
     // - GetDiscountedProducts
     // - GetNewArrivalProducts
     // - getProductsbyCategory
     //
-    // Important:
-    // Images are intentionally NOT loaded here.
+    // Translated entirely to SQL. Images are loaded as a list of
+    // URLs ordered by SortOrder. Descriptions, category and full
+    // variant data are NOT loaded.
     //
     // HasVariants is calculated by SQL using EXISTS instead of
     // loading ProductVariant entities.
     //
     private static readonly Expression<Func<Product, ProductResponseDto>>
-     ProductListProjection =
-         p => new ProductResponseDto
-         {
-             Id = p.Id,
+        ProductListProjection =
+            p => new ProductResponseDto
+            {
+                Id = p.Id,
 
-             NameEn = p.NameEn,
-             NameAr = p.NameAr,
+                NameEn = p.NameEn,
+                NameAr = p.NameAr,
 
-             Price = p.Price,
+                Price = p.Price,
 
-             ActualPrice = 0,
+                ActualPrice = 0,
 
-             StockQuantity =
-                 ProductDefaultStock,
+                StockQuantity =
+                    ProductDefaultStock,
 
-             IsInStock =
-                 p.IsInStock,
+                IsInStock =
+                    p.IsInStock,
 
-             DiscountPercentage =
-                 p.DiscountPercentage,
+                DiscountPercentage =
+                    p.DiscountPercentage,
 
-             DiscountedPrice =
-                 p.DiscountPercentage > 0
-                     ? p.Price -
-                       (p.Price *
-                        p.DiscountPercentage / 100m)
-                     : p.Price,
+                DiscountedPrice =
+                    p.DiscountPercentage > 0
+                        ? p.Price -
+                          (p.Price *
+                           p.DiscountPercentage / 100m)
+                        : p.Price,
 
-             CategoryId =
-                 p.CategoryId,
+                CategoryId =
+                    p.CategoryId,
 
-             HasVariants =
-                 p.Variants.Any(v =>
-                     v.IsActive &&
-                     (!v.SizeId.HasValue ||
-                      (v.Size != null &&
-                       v.Size.IsActive)) &&
-                     (!v.HeelSizeId.HasValue ||
-                      (v.HeelSize != null &&
-                       v.HeelSize.IsActive))
-                 ),
+                HasVariants =
+                    p.Variants.Any(v =>
+                        v.IsActive &&
+                        (!v.SizeId.HasValue ||
+                         (v.Size != null &&
+                          v.Size.IsActive)) &&
+                        (!v.HeelSizeId.HasValue ||
+                         (v.HeelSize != null &&
+                          v.HeelSize.IsActive))
+                    ),
 
-             Images =
-                 p.Images
-                     .OrderBy(i => i.SortOrder)
-                     .Select(i => i.ImageUrl)
-                     .ToList()
-         };
-
+                Images =
+                    p.Images
+                        .OrderBy(i => i.SortOrder)
+                        .Select(i => i.ImageUrl)
+                        .ToList()
+            };
 
     // ============================================================
     // GET PRODUCTS
@@ -222,7 +222,8 @@ public sealed class ProductService : IProductService
             Page = page,
 
             PageSize = PageSize,
-            HasMore= page * PageSize < totalCount,
+
+            HasMore = page * PageSize < totalCount,
 
             TotalCount = totalCount,
 
@@ -266,6 +267,9 @@ public sealed class ProductService : IProductService
             await query.CountAsync(
                 cancellationToken);
 
+        // Inactive variants are filtered in SQL.
+        // MapAllProduct drops them anyway, so the output is unchanged,
+        // they are just no longer loaded from the database.
         var products =
             await query
                 .OrderByDescending(p => p.CreatedAt)
@@ -277,10 +281,12 @@ public sealed class ProductService : IProductService
 
                 .Include(p => p.Category)
 
-                .Include(p => p.Variants)
+                .Include(p => p.Variants
+                    .Where(v => v.IsActive))
                     .ThenInclude(v => v.Size)
 
-                .Include(p => p.Variants)
+                .Include(p => p.Variants
+                    .Where(v => v.IsActive))
                     .ThenInclude(v => v.HeelSize)
 
                 .AsSplitQuery()
@@ -297,6 +303,8 @@ public sealed class ProductService : IProductService
             Page = page,
 
             PageSize = AdminPageSize,
+
+            HasMore = page * AdminPageSize < totalCount,
 
             TotalCount = totalCount,
 
@@ -346,9 +354,6 @@ public sealed class ProductService : IProductService
             : MapAllProduct(product);
     }
 
-
-
-
     // ============================================================
     // SEARCH PRODUCTS
     // ============================================================
@@ -360,8 +365,10 @@ public sealed class ProductService : IProductService
         if (string.IsNullOrWhiteSpace(name))
             return [];
 
-        var search =
-            name.Trim();
+        // Escape %, _ and [ so they are matched literally
+        // instead of acting as LIKE wildcards.
+        var pattern =
+            $"%{EscapeLikePattern(name.Trim())}%";
 
         return await _context.Products
             .AsNoTracking()
@@ -370,11 +377,13 @@ public sealed class ProductService : IProductService
 
                 (EF.Functions.Like(
                      p.NameEn,
-                     $"%{search}%") ||
+                     pattern,
+                     LikeEscapeCharacter) ||
 
                  EF.Functions.Like(
                      p.NameAr,
-                     $"%{search}%")))
+                     pattern,
+                     LikeEscapeCharacter)))
 
             .OrderByDescending(
                 p => p.CreatedAt)
@@ -394,42 +403,9 @@ public sealed class ProductService : IProductService
     // GET PRODUCTS BY IDS
     // ============================================================
 
-    //public async Task<List<ProductResponseDto>> GetProductsByIds(
-    //    List<int> productIds,
-    //    CancellationToken cancellationToken = default)
-    //{
-    //    if (productIds is null ||
-    //        productIds.Count == 0)
-    //    {
-    //        return [];
-    //    }
-
-    //    var ids =
-    //        productIds
-    //            .Where(id => id > 0)
-    //            .Distinct()
-    //            .ToArray();
-
-    //    if (ids.Length == 0)
-    //        return [];
-
-    //    return await _context.Products
-    //        .AsNoTracking()
-    //        .Where(p =>
-    //            ids.Contains(p.Id) &&
-    //            !p.IsDeleted)
-
-    //        .Select(ProductListProjection)
-
-    //        .ToListAsync(
-    //            cancellationToken);
-    //}
-
-
-
     public async Task<List<ProductResponseDto>> GetProductsByIds(
-    List<int> productIds,
-    CancellationToken cancellationToken = default)
+        List<int> productIds,
+        CancellationToken cancellationToken = default)
     {
         if (productIds is null ||
             productIds.Count == 0)
@@ -453,7 +429,9 @@ public sealed class ProductService : IProductService
                 .Where(p =>
                     ids.Contains(p.Id) &&
                     !p.IsDeleted)
-                 .Include(p => p.Images)
+
+                .Include(p => p.Images)
+
                 .Include(p => p.Variants
                     .Where(v => v.IsActive))
                     .ThenInclude(v => v.Size)
@@ -461,10 +439,9 @@ public sealed class ProductService : IProductService
                 .Include(p => p.Variants
                     .Where(v => v.IsActive))
                     .ThenInclude(v => v.HeelSize)
-                   
 
                 .AsSplitQuery()
-             
+
                 .ToListAsync(
                     cancellationToken);
 
@@ -509,7 +486,6 @@ public sealed class ProductService : IProductService
     {
         try
         {
-            
             var fromDate =
                 DateTime.UtcNow.AddMonths(-1);
 
@@ -532,10 +508,15 @@ public sealed class ProductService : IProductService
                 .ToListAsync(
                     cancellationToken);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            Console.WriteLine(e.Message);
-            return null;
+            // Same "do not throw" behavior as before, but logged properly
+            // and returning an empty list instead of null.
+            _logger.LogError(
+                e,
+                "Failed to load new arrival products.");
+
+            return [];
         }
     }
 
@@ -647,6 +628,8 @@ public sealed class ProductService : IProductService
                 .Select(x => x.ProductId)
                 .ToArray();
 
+        // Projected in SQL so hasVariants is calculated correctly
+        // (variants were never loaded before, so it was always false).
         var products =
             await _context.Products
                 .AsNoTracking()
@@ -658,7 +641,56 @@ public sealed class ProductService : IProductService
 
                     p.IsInStock)
 
-                .Include(p => p.Images)
+                .Select(p => new BestSellerProductDto
+                {
+                    Id =
+                        p.Id,
+
+                    NameEn =
+                        p.NameEn,
+
+                    NameAr =
+                        p.NameAr,
+
+                    Price =
+                        p.Price,
+
+                    ActualPrice =
+                        0,
+
+                    hasVariants =
+                        p.Variants.Any(v =>
+                            v.IsActive &&
+                            (!v.SizeId.HasValue ||
+                             (v.Size != null &&
+                              v.Size.IsActive)) &&
+                            (!v.HeelSizeId.HasValue ||
+                             (v.HeelSize != null &&
+                              v.HeelSize.IsActive))),
+
+                    StockQuantity =
+                        ProductDefaultStock,
+
+                    IsInStock =
+                        p.IsInStock,
+
+                    DiscountPercentage =
+                        p.DiscountPercentage,
+
+                    DiscountedPrice =
+                        p.DiscountPercentage > 0
+                            ? p.Price -
+                              (p.Price *
+                               p.DiscountPercentage /
+                               100m)
+                            : p.Price,
+
+                    Images =
+                        p.Images
+                            .OrderBy(i => i.SortOrder)
+                            .Select(i => i.ImageUrl)
+                            .ToList()
+                })
 
                 .ToListAsync(
                     cancellationToken);
@@ -671,69 +703,15 @@ public sealed class ProductService : IProductService
             new List<BestSellerProductDto>(
                 ranking.Count);
 
+        // Keep the ranking order.
         foreach (var rank in ranking)
         {
-            if (!productsById.TryGetValue(
+            if (productsById.TryGetValue(
                     rank.ProductId,
                     out var product))
             {
-                continue;
+                result.Add(product);
             }
-            var activeVariants =
-           product.Variants?
-               .Where(IsVisibleVariant)
-               .ToList()
-           ?? [];
-            result.Add(
-                new BestSellerProductDto
-                {
-                    Id =
-                        product.Id,
-
-                    NameEn =
-                        product.NameEn,
-
-                    NameAr =
-                        product.NameAr,
-
-                    Price =
-                        product.Price,
-
-                    ActualPrice =
-                        0,
-                    hasVariants=activeVariants.Count > 0,
-
-                    StockQuantity =
-                        ProductDefaultStock,
-
-                    IsInStock =
-                        product.IsInStock,
-
-                    DiscountPercentage =
-                        product.DiscountPercentage,
-
-                    DiscountedPrice =
-                        product.DiscountPercentage > 0
-
-                            ? product.Price -
-                              (product.Price *
-                               product.DiscountPercentage /
-                               100m)
-
-                            : product.Price,
-
-                    Images =
-                        product.Images?
-                            .OrderBy(
-                                i => i.SortOrder)
-
-                            .Select(
-                                i => i.ImageUrl)
-
-                            .ToList()
-
-                        ?? []
-                });
         }
 
         return result;
@@ -768,18 +746,6 @@ public sealed class ProductService : IProductService
     // CREATE PRODUCT
     // ============================================================
 
-    // ============================================================
-    // CREATE PRODUCT
-    // ============================================================
-
-    // ============================================================
-    // CREATE PRODUCT
-    // ============================================================
-
-    // ============================================================
-    // CREATE PRODUCT
-    // ============================================================
-
     public async Task<ProductDto> CreateProduct(
         ProductDto dto,
         CancellationToken cancellationToken = default)
@@ -789,10 +755,11 @@ public sealed class ProductService : IProductService
         NormalizeProductDto(dto);
         ValidateBasicProductData(dto);
 
-        // One DB round-trip for product-name + category validation.
-        await ValidateProductAndCategory(
-            dto.NameEn,
-            null,
+        // NOTE: the duplicate-name check is still NOT enforced here,
+        // same as before. To enable it, uncomment:
+        // await ValidateProductName(dto.NameEn, null, cancellationToken);
+
+        await ValidateCategory(
             dto.CategoryId,
             cancellationToken);
 
@@ -909,10 +876,6 @@ public sealed class ProductService : IProductService
     // UPDATE PRODUCT
     // ============================================================
 
-    // ============================================================
-    // UPDATE PRODUCT
-    // ============================================================
-
     public async Task<bool> UpdateProduct(
         int id,
         UpdateProductDto dto,
@@ -924,10 +887,11 @@ public sealed class ProductService : IProductService
         NormalizeProductDto(dto);
         ValidateBasicProductData(dto);
 
-        // One DB round-trip for product-name + category validation.
-        await ValidateProductAndCategory(
-            dto.NameEn,
-            id,
+        // NOTE: the duplicate-name check is still NOT enforced here,
+        // same as before. To enable it, uncomment:
+        // await ValidateProductName(dto.NameEn, id, cancellationToken);
+
+        await ValidateCategory(
             dto.CategoryId,
             cancellationToken);
 
@@ -964,9 +928,12 @@ public sealed class ProductService : IProductService
             product.IsInStock = dto.IsInStock;
             product.CategoryId = dto.CategoryId;
 
+            // Images are processed whenever the request sends an image list.
+            // Before, they were only processed when a NEW file was uploaded,
+            // so removing or reordering existing images did nothing.
+            // An empty list still means "leave images unchanged", as before.
             var imagesChanged =
-                dto.Images is not null &&
-                dto.Images.Any(x => x.Image is not null);
+                dto.Images is { Count: > 0 };
 
             if (imagesChanged)
             {
@@ -984,10 +951,12 @@ public sealed class ProductService : IProductService
 
             if (imagesChanged && oldImagesToDelete.Count > 0)
             {
+                // The database is already saved at this point,
+                // so do not let a cancelled request leave orphan files.
                 await _imageService.DeleteImagesAsync(
                     oldImagesToDelete,
                     "products",
-                    cancellationToken);
+                    CancellationToken.None);
             }
 
             return true;
@@ -1011,11 +980,11 @@ public sealed class ProductService : IProductService
     // ============================================================
 
     private async Task UpdateImagesAsync(
-    Product product,
-    List<ProductImageDto>? requestedImages,
-    List<string> newlyUploadedImages,
-    List<string> oldImagesToDelete,
-    CancellationToken cancellationToken)
+        Product product,
+        List<ProductImageDto>? requestedImages,
+        List<string> newlyUploadedImages,
+        List<string> oldImagesToDelete,
+        CancellationToken cancellationToken)
     {
         var requested =
             requestedImages?
@@ -1041,7 +1010,6 @@ public sealed class ProductService : IProductService
                 .ToHashSet(
                     StringComparer.OrdinalIgnoreCase);
 
-
         // ============================================================
         // REMOVE IMAGES THAT ARE NO LONGER REQUESTED
         // ============================================================
@@ -1059,7 +1027,6 @@ public sealed class ProductService : IProductService
             }
         }
 
-
         // ============================================================
         // UPDATE / ADD IMAGES
         // ============================================================
@@ -1068,7 +1035,6 @@ public sealed class ProductService : IProductService
         {
             var imageUrl =
                 requestedImage.ImageUrl?.Trim();
-
 
             // --------------------------------------------------------
             // EXISTING IMAGE
@@ -1082,14 +1048,12 @@ public sealed class ProductService : IProductService
                 existing.SortOrder =
                     requestedImage.SortOrder;
 
-
                 // No new file:
                 // keep existing physical image.
                 if (requestedImage.Image is null)
                 {
                     continue;
                 }
-
 
                 // ----------------------------------------------------
                 // REPLACE EXISTING IMAGE
@@ -1115,7 +1079,6 @@ public sealed class ProductService : IProductService
 
                 continue;
             }
-
 
             // --------------------------------------------------------
             // NEW IMAGE
@@ -1146,7 +1109,6 @@ public sealed class ProductService : IProductService
                 });
         }
 
-
         // ============================================================
         // NORMALIZE SORT ORDER
         // ============================================================
@@ -1170,17 +1132,15 @@ public sealed class ProductService : IProductService
         }
     }
 
-
-
     // ============================================================
     // UPLOAD IMAGES
     // ============================================================
 
     private async Task<List<UploadedImageResult>>
-       UploadImagesAsync(
-           List<ProductImageDto> images,
-           string folder,
-           CancellationToken cancellationToken)
+        UploadImagesAsync(
+            List<ProductImageDto> images,
+            string folder,
+            CancellationToken cancellationToken)
     {
         var validImages =
             images
@@ -1208,9 +1168,6 @@ public sealed class ProductService : IProductService
                             validImages[index].SortOrder))
                 .ToList();
     }
-    // ============================================================
-    // UPDATE VARIANTS
-    // ============================================================
 
     // ============================================================
     // UPDATE VARIANTS
@@ -1225,24 +1182,34 @@ public sealed class ProductService : IProductService
         // --------------------------------------------------------
         // BUILD LOOKUP OF EXISTING VARIANTS
         // --------------------------------------------------------
-
+        //
+        // A variant is identified by (SizeId, HeelSizeId) only.
+        // InStock is a property of the variant, not part of its identity.
+        //
+        // Old data may contain several rows for the same size combination
+        // (created when InStock was part of the key). Prefer the active row,
+        // then the newest one. The extra rows are deactivated below.
+        //
         var existingVariants =
             product.Variants
+                .GroupBy(v =>
+                    BuildVariantKey(
+                        v.SizeId,
+                        v.HeelSizeId))
                 .ToDictionary(
-                    v =>
-                        BuildVariantKey(
-                            v.SizeId,
-                            v.HeelSizeId,
-                            v.InStock));
+                    g => g.Key,
+                    g => g
+                        .OrderByDescending(v => v.IsActive)
+                        .ThenByDescending(v => v.Id)
+                        .First());
 
         // --------------------------------------------------------
-        // TRACK INCOMING VARIANT KEYS
+        // TRACK VARIANTS THAT SHOULD STAY ACTIVE
         // --------------------------------------------------------
 
-        var incomingKeys =
-            new HashSet<(
-                int? SizeId,
-                int? HeelSizeId, bool? inStock)>();
+        var keptVariants =
+            new HashSet<ProductVariant>(
+                ReferenceEqualityComparer.Instance);
 
         // --------------------------------------------------------
         // UPDATE EXISTING / ADD NEW
@@ -1253,11 +1220,7 @@ public sealed class ProductService : IProductService
             var key =
                 BuildVariantKey(
                     variantDto.SizeId,
-                    variantDto.HeelSizeId,
-                    variantDto.IsInStock
-                    );
-
-            incomingKeys.Add(key);
+                    variantDto.HeelSizeId);
 
             // ----------------------------------------------------
             // EXISTING VARIANT
@@ -1276,6 +1239,11 @@ public sealed class ProductService : IProductService
                 existingVariant.IsActive =
                     true;
 
+                existingVariant.InStock =
+                    variantDto.IsInStock;
+
+                keptVariants.Add(existingVariant);
+
                 continue;
             }
 
@@ -1283,7 +1251,7 @@ public sealed class ProductService : IProductService
             // NEW VARIANT
             // ----------------------------------------------------
 
-            product.Variants.Add(
+            var newVariant =
                 new ProductVariant
                 {
                     SizeId =
@@ -1297,9 +1265,16 @@ public sealed class ProductService : IProductService
 
                     IsActive =
                         true,
+
                     InStock =
                         variantDto.IsInStock
-                });
+                };
+
+            product.Variants.Add(newVariant);
+
+            existingVariants[key] = newVariant;
+
+            keptVariants.Add(newVariant);
         }
 
         // --------------------------------------------------------
@@ -1308,21 +1283,13 @@ public sealed class ProductService : IProductService
 
         foreach (var existingVariant in product.Variants)
         {
-            var key =
-                BuildVariantKey(
-                    existingVariant.SizeId,
-                    existingVariant.HeelSizeId,
-                    existingVariant.InStock
-                    );
-
-            if (!incomingKeys.Contains(key))
+            if (!keptVariants.Contains(existingVariant))
             {
                 existingVariant.IsActive =
                     false;
             }
         }
     }
-
 
     // ============================================================
     // REMOVE DISCOUNT
@@ -1390,42 +1357,12 @@ public sealed class ProductService : IProductService
     }
 
     // ============================================================
-    // VALIDATE PRODUCT + CATEGORY
-    // ============================================================
-
-    private async Task ValidateProductAndCategory(
-        string name,
-        int? currentId,
-        int categoryId,
-        CancellationToken cancellationToken)
-    {
-        if (categoryId <= 0)
-        {
-            throw new ArgumentException(
-                "A valid category is required.");
-        }
-
-        var validationResults = await  _context.Categories
-                    .AsNoTracking()
-                    .Where(c =>
-                        c.Id == categoryId &&
-                        !c.IsDeleted)
-                    .Select(_ => new { Type = 2, Id = 0 })
-            .ToListAsync(cancellationToken);
-
-     
-
-        if (!validationResults.Any(x => x.Type == 2))
-        {
-            throw new ArgumentException(
-                "The selected category does not exist.");
-        }
-    }
-
-    // ============================================================
     // VALIDATE PRODUCT NAME
     // ============================================================
-
+    //
+    // Not called anywhere (same as the original file).
+    // See the commented lines in CreateProduct / UpdateProduct.
+    //
     private async Task ValidateProductName(
         string name,
         int? currentId,
@@ -1553,7 +1490,6 @@ public sealed class ProductService : IProductService
     // VALIDATE VARIANTS
     // ============================================================
 
-
     private async Task ValidateVariants(
         List<ProductVariantDto>? variants,
         CancellationToken cancellationToken)
@@ -1561,7 +1497,7 @@ public sealed class ProductService : IProductService
         if (variants is null || variants.Count == 0)
             return;
 
-        var keys = new HashSet<(int? SizeId, int? HeelSizeId, bool? inStock)>();
+        var keys = new HashSet<(int? SizeId, int? HeelSizeId)>();
         var sizeIds = new HashSet<int>();
         var heelSizeIds = new HashSet<int>();
 
@@ -1576,8 +1512,7 @@ public sealed class ProductService : IProductService
 
             var key = BuildVariantKey(
                 variant.SizeId,
-                variant.HeelSizeId,
-                variant.IsInStock);
+                variant.HeelSizeId);
 
             if (!keys.Add(key))
             {
@@ -1713,16 +1648,25 @@ public sealed class ProductService : IProductService
     // VARIANT KEY
     // ============================================================
 
-    private static (
-        int? SizeId,
-        int? HeelSizeId, bool? inStock) BuildVariantKey(
-            int? sizeId,
-            int? heelSizeId,
-            bool? inStock)
+    private static (int? SizeId, int? HeelSizeId) BuildVariantKey(
+        int? sizeId,
+        int? heelSizeId)
     {
-        return (
-            sizeId,
-            heelSizeId,inStock);
+        return (sizeId, heelSizeId);
+    }
+
+    // ============================================================
+    // LIKE PATTERN ESCAPING
+    // ============================================================
+
+    private static string EscapeLikePattern(
+        string value)
+    {
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("%", "\\%")
+            .Replace("_", "\\_")
+            .Replace("[", "\\[");
     }
 
     // ============================================================
@@ -1824,7 +1768,8 @@ public sealed class ProductService : IProductService
 
                                 SizeId =
                                     v.SizeId,
-                                IsInStock=
+
+                                IsInStock =
                                     v.InStock,
 
                                 SizeName =

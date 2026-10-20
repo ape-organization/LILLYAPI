@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using SkiaSharp;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 namespace PharmacyAPI.Services;
 
@@ -8,11 +9,28 @@ public sealed class ImageService
 {
     private readonly string _uploadPath;
     private readonly string _uploadUrlPrefix;
+    private readonly ILogger<ImageService> _logger;
 
     private const int MaxImageDimension = 1600;
     private const int WebpQuality = 82;
+
+    // Rejects "decompression bombs": small files that claim huge dimensions.
+    // 50 MP is above any normal phone camera photo.
+    private const long MaxSourcePixels = 50_000_000;
+
+    // WebP files above this size are re-encoded even when their
+    // dimensions are already fine, to keep served images small.
+    private const long WebpFastPathMaxBytes = 500 * 1024;
+
+    private const int FileBufferSize = 64 * 1024;
+
     private static readonly int MaxConcurrentImageProcessing =
         Math.Clamp(Environment.ProcessorCount, 2, 3);
+
+    // ONE gate for the whole server (not per request), so concurrent
+    // uploads from several admins cannot exhaust memory.
+    private static readonly SemaphoreSlim ImageGate =
+        new(MaxConcurrentImageProcessing, MaxConcurrentImageProcessing);
 
     private static readonly HashSet<string> AllowedExtensions =
         new(StringComparer.OrdinalIgnoreCase)
@@ -24,7 +42,9 @@ public sealed class ImageService
             ".jfif"
         };
 
-    public ImageService(IConfiguration configuration)
+    public ImageService(
+        IConfiguration configuration,
+        ILogger<ImageService> logger)
     {
         _uploadPath =
             configuration["FileStorage:UploadPath"]
@@ -33,7 +53,13 @@ public sealed class ImageService
         _uploadUrlPrefix =
             configuration["FileStorage:UploadUrlPrefix"]
             ?? "/uploads/LILLY";
+
+        _logger = logger;
     }
+
+    // =============================================================
+    // SAVE SINGLE IMAGE
+    // =============================================================
 
     public async Task<string> SaveImageAsync(
         IFormFile file,
@@ -49,172 +75,34 @@ public sealed class ImageService
         var fileName = $"{Guid.NewGuid():N}.webp";
         var physicalPath = Path.Combine(directory, fileName);
 
+        // Global concurrency limit. Applies to single uploads and batches.
+        await ImageGate.WaitAsync(cancellationToken);
+
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // --------------------------------------------------------
-            // FAST PATH: already-valid WebP
-            // --------------------------------------------------------
-            // If the source is WebP, already within our dimensions,
-            // and has no EXIF orientation transform, do not decode or
-            // re-encode it. Re-encoding was the largest image cost in
-            // the previous implementation.
-            // --------------------------------------------------------
+            await WriteImageAsync(
+                file,
+                physicalPath,
+                cancellationToken);
 
-            var extension = Path.GetExtension(file.FileName);
-
-            if (string.Equals(
-                    extension,
-                    ".webp",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                using var probeStream = file.OpenReadStream();
-                using var codec = SKCodec.Create(probeStream);
-
-                if (codec is null)
-                {
-                    throw new InvalidOperationException(
-                        "The uploaded file could not be decoded as an image.");
-                }
-
-                var width = codec.Info.Width;
-                var height = codec.Info.Height;
-                var orientation = codec.EncodedOrigin;
-
-                if (width <= MaxImageDimension &&
-                    height <= MaxImageDimension &&
-                    orientation == SKEncodedOrigin.TopLeft)
-                {
-                    await using var inputStream = file.OpenReadStream();
-
-                    await using var outputStream =
-                        new FileStream(
-                            physicalPath,
-                            FileMode.CreateNew,
-                            FileAccess.Write,
-                            FileShare.None,
-                            64 * 1024,
-                            FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-                    await inputStream.CopyToAsync(
-                        outputStream,
-                        64 * 1024,
-                        cancellationToken);
-
-                    return
-                        $"{_uploadUrlPrefix.TrimEnd('/')}/" +
-                        $"{folder}/" +
-                        fileName;
-                }
-            }
-
-            // --------------------------------------------------------
-            // NORMAL IMAGE PIPELINE
-            // --------------------------------------------------------
-
-            using var sourceStream = file.OpenReadStream();
-            using var sourceCodec = SKCodec.Create(sourceStream);
-
-            if (sourceCodec is null)
-            {
-                throw new InvalidOperationException(
-                    "The uploaded file could not be decoded as an image.");
-            }
-
-            var originalWidth = sourceCodec.Info.Width;
-            var originalHeight = sourceCodec.Info.Height;
-            var orientationValue = sourceCodec.EncodedOrigin;
-
-            var bitmapInfo = new SKImageInfo(
-                originalWidth,
-                originalHeight,
-                SKColorType.Bgra8888,
-                SKAlphaType.Premul);
-
-            using var decodedBitmap = new SKBitmap(bitmapInfo);
-
-            var decodeResult = sourceCodec.GetPixels(
-                bitmapInfo,
-                decodedBitmap.GetPixels());
-
-            if (decodeResult != SKCodecResult.Success &&
-                decodeResult != SKCodecResult.IncompleteInput)
-            {
-                throw new InvalidOperationException(
-                    $"Image decoding failed with result: {decodeResult}");
-            }
-
-            SKBitmap? orientationBitmap = null;
-            SKBitmap? resizedBitmap = null;
-
-            try
-            {
-                var processingBitmap = decodedBitmap;
-
-                if (orientationValue != SKEncodedOrigin.TopLeft)
-                {
-                    orientationBitmap = ApplyOrientation(
-                        decodedBitmap,
-                        orientationValue);
-
-                    processingBitmap = orientationBitmap;
-                }
-
-                var finalBitmap = processingBitmap;
-
-                if (processingBitmap.Width > MaxImageDimension ||
-                    processingBitmap.Height > MaxImageDimension)
-                {
-                    resizedBitmap = ResizeBitmap(
-                        processingBitmap,
-                        MaxImageDimension);
-
-                    finalBitmap = resizedBitmap;
-                }
-
-                using var image = SKImage.FromBitmap(finalBitmap);
-
-                using var encodedData = image.Encode(
-                    SKEncodedImageFormat.Webp,
-                    WebpQuality);
-
-                if (encodedData is null || encodedData.Size <= 0)
-                {
-                    throw new InvalidOperationException(
-                        "WebP encoding failed.");
-                }
-
-                await using var outputStream =
-                    new FileStream(
-                        physicalPath,
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.None,
-                        64 * 1024,
-                        FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-                encodedData.SaveTo(outputStream);
-
-                await outputStream.FlushAsync(cancellationToken);
-            }
-            finally
-            {
-                resizedBitmap?.Dispose();
-                orientationBitmap?.Dispose();
-            }
-
-            return
-                $"{_uploadUrlPrefix.TrimEnd('/')}/" +
-                $"{folder}/" +
-                fileName;
+            return BuildUrl(folder, fileName);
         }
         catch
         {
             TryDeletePhysicalFile(physicalPath);
             throw;
         }
+        finally
+        {
+            ImageGate.Release();
+        }
     }
+
+    // =============================================================
+    // SAVE MULTIPLE IMAGES
+    // =============================================================
 
     public async Task<List<string>> SaveImagesAsync(
         IEnumerable<IFormFile> files,
@@ -229,20 +117,19 @@ public sealed class ImageService
         if (fileList.Count == 0)
             return [];
 
-        var batchStopwatch =
-            Stopwatch.StartNew();
+        var batchStopwatch = Stopwatch.StartNew();
 
-        Console.WriteLine(
-            $"IMAGE BATCH START | " +
-            $"Count={fileList.Count} | " +
-            $"MaxConcurrency={MaxConcurrentImageProcessing}");
+        _logger.LogInformation(
+            "Image batch start | Count={Count} | MaxConcurrency={MaxConcurrency}",
+            fileList.Count,
+            MaxConcurrentImageProcessing);
 
-        var results =
-            new string[fileList.Count];
+        var results = new string?[fileList.Count];
 
-        using var semaphore =
-            new SemaphoreSlim(
-                MaxConcurrentImageProcessing);
+        // If one image fails, the others stop instead of finishing for nothing.
+        using var batchCts =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
 
         var tasks =
             fileList
@@ -253,44 +140,304 @@ public sealed class ImageService
                             folder,
                             index,
                             results,
-                            semaphore,
-                            cancellationToken))
+                            batchCts))
                 .ToArray();
 
-        await Task.WhenAll(tasks);
+        var whenAll = Task.WhenAll(tasks);
+
+        try
+        {
+            await whenAll;
+        }
+        catch
+        {
+            // Delete the images that DID succeed, otherwise they stay on
+            // disk forever: the caller never receives their URLs.
+            await DeleteImagesAsync(
+                results.Where(x => x is not null),
+                folder,
+                CancellationToken.None);
+
+            // Throw the real error, not the cancellation of a sibling task.
+            var realError =
+                whenAll.Exception?
+                    .InnerExceptions
+                    .FirstOrDefault(e => e is not OperationCanceledException);
+
+            if (realError is not null)
+            {
+                ExceptionDispatchInfo.Capture(realError).Throw();
+            }
+
+            throw;
+        }
 
         batchStopwatch.Stop();
 
-        Console.WriteLine(
-            $"IMAGE BATCH COMPLETE | " +
-            $"Count={fileList.Count} | " +
-            $"Total={batchStopwatch.ElapsedMilliseconds} ms");
+        _logger.LogInformation(
+            "Image batch complete | Count={Count} | Total={ElapsedMs} ms",
+            fileList.Count,
+            batchStopwatch.ElapsedMilliseconds);
 
-        return results.ToList();
+        return results
+            .Select(x => x!)
+            .ToList();
     }
 
     private async Task ProcessImageAsync(
         IFormFile file,
         string folder,
         int index,
-        string[] results,
-        SemaphoreSlim semaphore,
-        CancellationToken cancellationToken)
+        string?[] results,
+        CancellationTokenSource batchCts)
     {
-        await semaphore.WaitAsync(
-            cancellationToken);
-
         try
         {
             results[index] =
                 await SaveImageAsync(
                     file,
                     folder,
-                    cancellationToken);
+                    batchCts.Token);
+        }
+        catch
+        {
+            batchCts.Cancel();
+            throw;
+        }
+    }
+
+    // =============================================================
+    // IMAGE PIPELINE
+    // =============================================================
+
+    private static async Task WriteImageAsync(
+        IFormFile file,
+        string physicalPath,
+        CancellationToken cancellationToken)
+    {
+        if (await TryCopyWebpAsIsAsync(
+                file,
+                physicalPath,
+                cancellationToken))
+        {
+            return;
+        }
+
+        using var sourceStream = file.OpenReadStream();
+
+        using var codec =
+            SKCodec.Create(sourceStream)
+            ?? throw new InvalidOperationException(
+                "The uploaded file could not be decoded as an image.");
+
+        EnsureDimensionsAllowed(
+            codec.Info.Width,
+            codec.Info.Height);
+
+        var origin = codec.EncodedOrigin;
+
+        // Decode directly at a reduced size when possible
+        // (JPEG supports 1/2, 1/4, 1/8 natively). This avoids
+        // allocating the full-resolution bitmap.
+        using var decodedBitmap = DecodeScaled(codec);
+
+        SKBitmap? resizedBitmap = null;
+        SKBitmap? orientedBitmap = null;
+
+        try
+        {
+            var current = decodedBitmap;
+
+            // Resize FIRST, then rotate: rotating a small bitmap is
+            // much cheaper. The limit is the same for width and height,
+            // so the final result is identical.
+            if (current.Width > MaxImageDimension ||
+                current.Height > MaxImageDimension)
+            {
+                resizedBitmap = ResizeBitmap(
+                    current,
+                    MaxImageDimension);
+
+                current = resizedBitmap;
+            }
+
+            if (origin != SKEncodedOrigin.TopLeft)
+            {
+                orientedBitmap = ApplyOrientation(
+                    current,
+                    origin);
+
+                current = orientedBitmap;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var image = SKImage.FromBitmap(current);
+
+            using var encodedData = image.Encode(
+                SKEncodedImageFormat.Webp,
+                WebpQuality);
+
+            if (encodedData is null || encodedData.Size <= 0)
+            {
+                throw new InvalidOperationException(
+                    "WebP encoding failed.");
+            }
+
+            await using var outputStream = CreateOutputFile(physicalPath);
+            using var dataStream = encodedData.AsStream();
+
+            await dataStream.CopyToAsync(
+                outputStream,
+                FileBufferSize,
+                cancellationToken);
         }
         finally
         {
-            semaphore.Release();
+            orientedBitmap?.Dispose();
+            resizedBitmap?.Dispose();
+        }
+    }
+
+    // -------------------------------------------------------------
+    // FAST PATH: small, already-valid WebP
+    // -------------------------------------------------------------
+    // Copied as-is when it is WebP, small in bytes, within our
+    // dimensions and has no EXIF orientation transform.
+    // -------------------------------------------------------------
+
+    private static async Task<bool> TryCopyWebpAsIsAsync(
+        IFormFile file,
+        string physicalPath,
+        CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(file.FileName);
+
+        if (!string.Equals(
+                extension,
+                ".webp",
+                StringComparison.OrdinalIgnoreCase) ||
+            file.Length > WebpFastPathMaxBytes)
+        {
+            return false;
+        }
+
+        using (var probeStream = file.OpenReadStream())
+        using (var codec = SKCodec.Create(probeStream))
+        {
+            if (codec is null)
+            {
+                throw new InvalidOperationException(
+                    "The uploaded file could not be decoded as an image.");
+            }
+
+            if (codec.Info.Width > MaxImageDimension ||
+                codec.Info.Height > MaxImageDimension ||
+                codec.EncodedOrigin != SKEncodedOrigin.TopLeft)
+            {
+                return false;
+            }
+        }
+
+        await using var inputStream = file.OpenReadStream();
+        await using var outputStream = CreateOutputFile(physicalPath);
+
+        await inputStream.CopyToAsync(
+            outputStream,
+            FileBufferSize,
+            cancellationToken);
+
+        return true;
+    }
+
+    // =============================================================
+    // DECODE
+    // =============================================================
+
+    private static SKBitmap DecodeScaled(
+        SKCodec codec)
+    {
+        var info = codec.Info;
+
+        var scale =
+            Math.Min(
+                1f,
+                (float)MaxImageDimension /
+                Math.Max(info.Width, info.Height));
+
+        if (scale < 1f)
+        {
+            // Returns the closest size the decoder supports,
+            // at or slightly above the requested size.
+            var scaledSize = codec.GetScaledDimensions(scale);
+
+            if (scaledSize.Width > 0 &&
+                scaledSize.Height > 0 &&
+                (scaledSize.Width < info.Width ||
+                 scaledSize.Height < info.Height))
+            {
+                var scaled = TryDecode(
+                    codec,
+                    scaledSize.Width,
+                    scaledSize.Height);
+
+                if (scaled is not null)
+                    return scaled;
+            }
+        }
+
+        // Format does not support scaled decoding: decode full size.
+        return TryDecode(
+                   codec,
+                   info.Width,
+                   info.Height)
+               ?? throw new InvalidOperationException(
+                   "Image decoding failed.");
+    }
+
+    private static SKBitmap? TryDecode(
+        SKCodec codec,
+        int width,
+        int height)
+    {
+        var bitmapInfo = new SKImageInfo(
+            width,
+            height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul);
+
+        var bitmap = new SKBitmap(bitmapInfo);
+
+        var result = codec.GetPixels(
+            bitmapInfo,
+            bitmap.GetPixels());
+
+        if (result is SKCodecResult.Success or SKCodecResult.IncompleteInput)
+            return bitmap;
+
+        bitmap.Dispose();
+
+        if (result == SKCodecResult.InvalidScale)
+            return null;
+
+        throw new InvalidOperationException(
+            $"Image decoding failed with result: {result}");
+    }
+
+    private static void EnsureDimensionsAllowed(
+        int width,
+        int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            throw new InvalidOperationException(
+                "The uploaded image has invalid dimensions.");
+        }
+
+        if ((long)width * height > MaxSourcePixels)
+        {
+            throw new InvalidOperationException(
+                "The uploaded image dimensions are too large.");
         }
     }
 
@@ -310,14 +457,12 @@ public sealed class ImageService
         var newWidth =
             Math.Max(
                 1,
-                (int)Math.Round(
-                    source.Width * scale));
+                (int)Math.Round(source.Width * scale));
 
         var newHeight =
             Math.Max(
                 1,
-                (int)Math.Round(
-                    source.Height * scale));
+                (int)Math.Round(source.Height * scale));
 
         var resized =
             new SKBitmap(
@@ -327,30 +472,25 @@ public sealed class ImageService
                     SKColorType.Bgra8888,
                     SKAlphaType.Premul));
 
-        using var canvas =
-            new SKCanvas(resized);
+        using var canvas = new SKCanvas(resized);
 
-        canvas.Clear(
-            SKColors.Transparent);
+        canvas.Clear(SKColors.Transparent);
 
-        using var paint =
-            new SKPaint
-            {
-                IsAntialias = true
-            };
+        using var paint = new SKPaint
+        {
+            IsAntialias = true
+        };
 
+        // After scaled decoding the remaining ratio is small (< 2x),
+        // where a cubic filter gives sharper results than linear and
+        // no mipmaps have to be built.
         var sampling =
             new SKSamplingOptions(
-                SKFilterMode.Linear,
-                SKMipmapMode.Linear);
+                SKCubicResampler.Mitchell);
 
         canvas.DrawBitmap(
             source,
-            new SKRect(
-                0,
-                0,
-                newWidth,
-                newHeight),
+            new SKRect(0, 0, newWidth, newHeight),
             sampling,
             paint);
 
@@ -373,43 +513,25 @@ public sealed class ImageService
                 source.Copy(),
 
             SKEncodedOrigin.TopRight =>
-                Transform(
-                    source,
-                    0,
-                    flipHorizontal: true),
+                Transform(source, 0, flipHorizontal: true),
 
             SKEncodedOrigin.BottomRight =>
-                Transform(
-                    source,
-                    180),
+                Transform(source, 180),
 
             SKEncodedOrigin.BottomLeft =>
-                Transform(
-                    source,
-                    0,
-                    flipVertical: true),
+                Transform(source, 0, flipVertical: true),
 
             SKEncodedOrigin.LeftTop =>
-                Transform(
-                    source,
-                    90,
-                    flipHorizontal: true),
+                Transform(source, 90, flipHorizontal: true),
 
             SKEncodedOrigin.RightTop =>
-                Transform(
-                    source,
-                    90),
+                Transform(source, 90),
 
             SKEncodedOrigin.RightBottom =>
-                Transform(
-                    source,
-                    270,
-                    flipHorizontal: true),
+                Transform(source, 270, flipHorizontal: true),
 
             SKEncodedOrigin.LeftBottom =>
-                Transform(
-                    source,
-                    270),
+                Transform(source, 270),
 
             _ =>
                 source.Copy()
@@ -444,20 +566,15 @@ public sealed class ImageService
                     SKColorType.Bgra8888,
                     SKAlphaType.Premul));
 
-        using var canvas =
-            new SKCanvas(destination);
+        using var canvas = new SKCanvas(destination);
 
-        canvas.Clear(
-            SKColors.Transparent);
+        canvas.Clear(SKColors.Transparent);
 
         canvas.Save();
 
-        canvas.Translate(
-            width / 2f,
-            height / 2f);
+        canvas.Translate(width / 2f, height / 2f);
 
-        canvas.RotateDegrees(
-            rotateDegrees);
+        canvas.RotateDegrees(rotateDegrees);
 
         canvas.Scale(
             flipHorizontal ? -1 : 1,
@@ -467,11 +584,10 @@ public sealed class ImageService
             -source.Width / 2f,
             -source.Height / 2f);
 
-        using var paint =
-            new SKPaint
-            {
-                IsAntialias = true
-            };
+        using var paint = new SKPaint
+        {
+            IsAntialias = true
+        };
 
         var sampling =
             new SKSamplingOptions(
@@ -501,8 +617,7 @@ public sealed class ImageService
     {
         if (file is null)
         {
-            throw new ArgumentNullException(
-                nameof(file));
+            throw new ArgumentNullException(nameof(file));
         }
 
         if (file.Length <= 0)
@@ -511,9 +626,7 @@ public sealed class ImageService
                 "The uploaded image is empty.");
         }
 
-        var extension =
-            Path.GetExtension(
-                file.FileName);
+        var extension = Path.GetExtension(file.FileName);
 
         if (string.IsNullOrWhiteSpace(extension) ||
             !AllowedExtensions.Contains(extension))
@@ -569,6 +682,11 @@ public sealed class ImageService
     // =============================================================
     // DELETE IMAGE
     // =============================================================
+    //
+    // Deleting never throws for a bad or unknown URL: it is logged
+    // instead. A failed cleanup must not turn a successful save into
+    // an error, or hide the original exception in a rollback.
+    //
 
     public Task DeleteImageAsync(
         string? imageUrl,
@@ -580,13 +698,22 @@ public sealed class ImageService
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var physicalPath =
-            GetPhysicalPath(
-                imageUrl,
-                folder);
+        try
+        {
+            var physicalPath =
+                GetPhysicalPath(
+                    imageUrl,
+                    folder);
 
-        TryDeletePhysicalFile(
-            physicalPath);
+            TryDeletePhysicalFile(physicalPath);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                e,
+                "Could not delete image {ImageUrl}",
+                imageUrl);
+        }
 
         return Task.CompletedTask;
     }
@@ -596,24 +723,42 @@ public sealed class ImageService
         string folder,
         CancellationToken cancellationToken = default)
     {
-        var urls =
-            imageUrls
-                .Where(
-                    x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
+        foreach (var url in imageUrls)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                continue;
 
-        if (urls.Count == 0)
-            return;
+            await DeleteImageAsync(
+                url,
+                folder,
+                cancellationToken);
+        }
+    }
 
-        var tasks =
-            urls.Select(
-                url =>
-                    DeleteImageAsync(
-                        url,
-                        folder,
-                        cancellationToken));
+    // =============================================================
+    // URL / FILE HELPERS
+    // =============================================================
 
-        await Task.WhenAll(tasks);
+    private string BuildUrl(
+        string folder,
+        string fileName)
+    {
+        return
+            $"{_uploadUrlPrefix.TrimEnd('/')}/" +
+            $"{folder.Replace('\\', '/')}/" +
+            fileName;
+    }
+
+    private static FileStream CreateOutputFile(
+        string physicalPath)
+    {
+        return new FileStream(
+            physicalPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            FileBufferSize,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
     }
 
     // =============================================================
@@ -624,22 +769,19 @@ public sealed class ImageService
         string imageUrl,
         string folder)
     {
-        var relative =
-            imageUrl;
+        var relative = imageUrl;
 
         if (Uri.TryCreate(
                 imageUrl,
                 UriKind.Absolute,
                 out var absoluteUri))
         {
-            relative =
-                absoluteUri.AbsolutePath;
+            relative = absoluteUri.AbsolutePath;
         }
 
         relative =
-            Uri.UnescapeDataString(
-                relative)
-            .Replace('\\', '/');
+            Uri.UnescapeDataString(relative)
+                .Replace('\\', '/');
 
         var prefix =
             _uploadUrlPrefix
@@ -658,14 +800,11 @@ public sealed class ImageService
             relative[prefix.Length..]
                 .TrimStart('/');
 
-        var safeFolder =
-            SanitizeFolder(folder);
+        var safeFolder = SanitizeFolder(folder);
 
         var expectedFolderPrefix =
             safeFolder
-                .Replace(
-                    Path.DirectorySeparatorChar,
-                    '/')
+                .Replace(Path.DirectorySeparatorChar, '/')
                 .Trim('/');
 
         if (!relativePart.StartsWith(
@@ -683,11 +822,10 @@ public sealed class ImageService
                     relativePart));
 
         var root =
-            Path.GetFullPath(
-                _uploadPath)
-            .TrimEnd(
-                Path.DirectorySeparatorChar,
-                Path.AltDirectorySeparatorChar)
+            Path.GetFullPath(_uploadPath)
+                .TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
 
         if (!combined.StartsWith(
@@ -712,33 +850,12 @@ public sealed class ImageService
         {
             if (File.Exists(physicalPath))
             {
-                File.Delete(
-                    physicalPath);
+                File.Delete(physicalPath);
             }
         }
         catch
         {
             // Do not hide the original exception.
         }
-    }
-
-    // =============================================================
-    // FORMAT BYTES
-    // =============================================================
-
-    private static string FormatBytes(
-        long bytes)
-    {
-        if (bytes < 1024)
-            return $"{bytes} B";
-
-        if (bytes < 1024 * 1024)
-        {
-            return
-                $"{bytes / 1024.0:F1} KB";
-        }
-
-        return
-            $"{bytes / (1024.0 * 1024.0):F2} MB";
     }
 }

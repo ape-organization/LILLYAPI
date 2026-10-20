@@ -611,8 +611,15 @@ namespace PharmacyAPI.Services
             //send email to admin
             try
             {
-                _emailService.SendEmailAsync("ereny.karam.noshy@gmail.com","استلام طلب جديد", $"طلب جديد باسم {client.Name}." +
-                    $" رقم الطلب: {order.Id}, اجمالي الطلب: {order.TotalAmount:C}.");
+                await _emailService.SendEmailAsync(
+    "deaved.makram@gmail.com",
+    "استلام طلب جديد",
+
+    $" {client.Name} :طلب جديد باسم" +
+    $"<br>"+
+$"رقم الطلب: {order.Id}<br>" +
+$"إجمالي الطلب: {order.TotalAmount}"
+);
             }
             catch (Exception ex)
             {

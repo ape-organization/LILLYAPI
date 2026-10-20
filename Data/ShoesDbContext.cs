@@ -147,6 +147,12 @@ namespace PharmacyAPI.Data
                     p.DiscountPercentage,
                     p.Id
                 });
+              
+
+                modelBuilder.Entity<Product>()
+                    .HasIndex(p => new { p.CategoryId, p.IsDeleted, p.CreatedAt });
+
+               
 
                 // Product name search / lookup.
                 entity.HasIndex(p => p.NameEn);

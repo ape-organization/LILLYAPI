@@ -6,6 +6,8 @@ using PharmacyAPI.Models;
 using PharmacyAPI.Models.RequestsModels;
 using PharmacyAPI.Models.Responses;
 using System.Linq.Expressions;
+using System.Net;
+using System.Text;
 
 namespace PharmacyAPI.Services
 {
@@ -184,6 +186,7 @@ namespace PharmacyAPI.Services
 
                         Quantity =
                             g.Sum(x => x.Quantity),
+                        
 
                         DisplayedUnitPrice =
                             g.Select(x => x.DisplayedUnitPrice)
@@ -418,6 +421,8 @@ namespace PharmacyAPI.Services
                     Status =
                         OrderStatus.Pending,
 
+                    Note=
+                        dto.Note?.Trim(),
                     TotalAmount =
                         0
                 };
@@ -577,6 +582,7 @@ namespace PharmacyAPI.Services
 
                         UnitPrice =
                             unitPrice,
+                       
 
                         ActualPrice =
                             product.ActualPrice
@@ -609,26 +615,276 @@ namespace PharmacyAPI.Services
             await _context.SaveChangesAsync(
                 cancellationToken);
             //send email to admin
-            try
-            {
-                await _emailService.SendEmailAsync(
-    "deaved.makram@gmail.com",
-    "استلام طلب جديد",
+            Email(client, products, order);
+            //try
+            //{
 
-    $" {client.Name} :طلب جديد باسم" +
-    $"<br>"+
-$"رقم الطلب: {order.Id}<br>" +
-$"إجمالي الطلب: {order.TotalAmount}"
-);
-            }
-            catch (Exception ex)
-            {
-                // Log the exception or handle it as needed
-                Console.WriteLine($"Failed to send email: {ex.Message}");
-            }
+            //                await _emailService.SendEmailAsync(
+            //    "deaved.makram@gmail.com",
+            //    "استلام طلب جديد",
+
+            //    $" {client.Name} :طلب جديد باسم" +
+            //    $"<br>"+
+            //$"رقم الطلب: {order.Id}<br>" +
+            //$"إجمالي الطلب: {order.TotalAmount}"
+            //);
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                // Log the exception or handle it as needed
+            //                Console.WriteLine($"Failed to send email: {ex.Message}");
+            //            }
 
             return order;
         }
+
+
+        public async void Email(Client client,Dictionary<int, Product> products, Order order)
+        {
+
+            // SEND ORDER EMAIL
+            try
+            {
+                var itemsHtml = new StringBuilder();
+
+                foreach (var item in order.Items)
+                {
+                    var product = products[item.ProductId];
+                    var subtotal = item.UnitPrice * item.Quantity;
+
+                    var variantText = item.ProductVariantId.HasValue
+                        ? $@"<div style='font-size:12px;color:#64748b;margin-top:5px;'>
+                        رقم الاختيار: {item.ProductVariantId.Value}
+                     </div>"
+                        : "";
+
+                    itemsHtml.Append($@"
+                <tr>
+                    <td style='padding:14px 10px;border-bottom:1px solid #e2e8f0;'>
+                        <strong>{WebUtility.HtmlEncode(product.NameAr)}</strong>
+                        {variantText}
+                    </td>
+                    <td style='padding:14px 6px;text-align:center;border-bottom:1px solid #e2e8f0;'>
+                        {item.Quantity}
+                    </td>
+                    <td dir='ltr' style='padding:14px 6px;text-align:center;border-bottom:1px solid #e2e8f0;white-space:nowrap;'>
+                        {item.UnitPrice:N2}
+                    </td>
+                    <td dir='ltr' style='padding:14px 10px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:bold;white-space:nowrap;'>
+                        {subtotal:N2}
+                    </td>
+                </tr>");
+                }
+
+                var clientNameHtml =
+                    WebUtility.HtmlEncode(client.Name ?? "");
+
+                var clientPhoneHtml =
+                    WebUtility.HtmlEncode(client.PhoneNumber ?? "");
+
+                var clientAddressHtml =
+                    WebUtility.HtmlEncode(client.Address ?? "");
+
+                var clientEmailHtml =
+                    WebUtility.HtmlEncode(
+                        string.IsNullOrWhiteSpace(client.Email)
+                            ? "غير مسجل"
+                            : client.Email);
+
+                var orderNote = string.IsNullOrWhiteSpace(order.Note)
+                    ? "لا توجد ملاحظات"
+                    : WebUtility.HtmlEncode(order.Note);
+
+                var emailBody = $@"
+<!DOCTYPE html>
+<html lang='ar' dir='rtl'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head>
+
+<body dir='rtl' style='margin:0;padding:0;background:#f1f5f9;
+    font-family:Tahoma,Arial,sans-serif;color:#1e293b;'>
+
+<div style='max-width:760px;margin:30px auto;padding:0 12px;'>
+
+    <!-- HEADER -->
+    <div style='background:#172554;padding:30px 24px;
+        border-radius:14px 14px 0 0;text-align:center;'>
+
+        <h1 style='color:#ffffff;margin:0;font-size:27px;'>
+            إشعار طلب جديد
+        </h1>
+    </div>
+
+    <!-- CONTENT -->
+    <div style='background:#ffffff;padding:26px 20px;'>
+
+        <!-- ORDER SUMMARY -->
+        <div style='background:#eff6ff;border:1px solid #dbeafe;
+            border-radius:10px;padding:20px;margin-bottom:28px;'>
+
+            <table role='presentation' width='100%' cellpadding='0' cellspacing='0'>
+                <tr>
+                    <td>
+                        <div style='font-size:12px;color:#64748b;'>
+                            رقم الطلب
+                        </div>
+
+                        <div dir='ltr' style='text-align:right;font-size:25px;
+                            font-weight:bold;color:#1d4ed8;margin-top:8px;'>
+                            #{order.Id}
+                        </div>
+                    </td>
+
+                    <td style='text-align:left;vertical-align:top;'>
+                        <span style='display:inline-block;background:#fef3c7;
+                            color:#92400e;padding:8px 13px;border-radius:20px;
+                            font-size:12px;font-weight:bold;'>
+                            قيد الانتظار
+                        </span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- CLIENT DETAILS -->
+        <h2 style='font-size:19px;color:#0f172a;margin:0 0 15px;'>
+            بيانات العميل
+        </h2>
+
+        <table role='presentation' width='100%' cellpadding='0' cellspacing='0'
+            style='border:1px solid #e2e8f0;border-radius:10px;
+            margin-bottom:30px;font-size:14px;'>
+
+            <tr>
+                <td style='padding:14px;border-bottom:1px solid #e2e8f0;
+                    width:115px;color:#64748b;'>
+                    اسم العميل
+                </td>
+                <td style='padding:14px;border-bottom:1px solid #e2e8f0;font-weight:bold;'>
+                    {clientNameHtml}
+                </td>
+            </tr>
+
+            <tr>
+                <td style='padding:14px;border-bottom:1px solid #e2e8f0;color:#64748b;'>
+                    رقم الهاتف
+                </td>
+                <td dir='ltr' style='padding:14px;text-align:right;border-bottom:1px solid #e2e8f0;'>
+                    {clientPhoneHtml}
+                </td>
+            </tr>
+
+            <tr>
+                <td style='padding:14px;border-bottom:1px solid #e2e8f0;color:#64748b;'>
+                    البريد الإلكتروني
+                </td>
+                <td dir='ltr' style='padding:14px;text-align:right;border-bottom:1px solid #e2e8f0;word-break:break-word;'>
+                    {clientEmailHtml}
+                </td>
+            </tr>
+
+            <tr>
+                <td style='padding:14px;color:#64748b;'>
+                    عنوان العميل
+                </td>
+                <td style='padding:14px;line-height:1.9;'>
+                    {clientAddressHtml}
+                </td>
+            </tr>
+        </table>
+
+        <!-- ORDER ITEMS -->
+        <h2 style='font-size:19px;color:#0f172a;margin:0 0 15px;'>
+            تفاصيل المنتجات
+        </h2>
+
+        <table width='100%' cellpadding='0' cellspacing='0'
+            style='border-collapse:collapse;font-size:12px;'>
+
+            <thead>
+                <tr style='background:#f8fafc;'>
+                    <th style='padding:13px 8px;text-align:right;color:#475569;border-bottom:2px solid #e2e8f0;'>
+                        المنتج
+                    </th>
+                    <th style='padding:13px 5px;text-align:center;color:#475569;border-bottom:2px solid #e2e8f0;'>
+                        الكمية
+                    </th>
+                    <th style='padding:13px 5px;text-align:center;color:#475569;border-bottom:2px solid #e2e8f0;'>
+                        سعر الوحدة
+                    </th>
+                    <th style='padding:13px 5px;text-align:center;color:#475569;border-bottom:2px solid #e2e8f0;'>
+                        الإجمالي
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {itemsHtml}
+            </tbody>
+        </table>
+
+        <!-- CUSTOMER NOTE -->
+        <div style='margin-top:24px;padding:18px;background:#fff7ed;
+            border-right:4px solid #f97316;border-radius:6px;'>
+
+            <strong style='color:#9a3412;font-size:15px;'>
+                ملاحظات الطلب
+            </strong>
+
+            <p style='margin:10px 0 0;color:#334155;font-size:14px;line-height:2;white-space:pre-wrap;'>
+                {orderNote}
+            </p>
+        </div>
+
+        <!-- TOTAL -->
+        <div style='margin-top:24px;background:#f8fafc;
+            border-radius:10px;padding:22px;'>
+
+            <table role='presentation' width='100%' cellpadding='0' cellspacing='0'>
+                <tr>
+                    <td style='font-size:15px;color:#475569;'>
+                        إجمالي قيمة الطلب
+                    </td>
+
+                    <td dir='ltr' style='text-align:left;font-size:23px;
+                        font-weight:bold;color:#1d4ed8;white-space:nowrap;'>
+                        {order.TotalAmount:N2}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div style='background:#0f172a;padding:18px;
+        text-align:center;border-radius:0 0 14px 14px;'>
+
+        <p style='margin:0;color:#94a3b8;font-size:12px;line-height:2;'>
+            يُرجى عدم الرد مباشرةً على هذه الرسالة.
+        </p>
+    </div>
+
+</div>
+</body>
+</html>";
+
+                await _emailService.SendEmailAsync(
+                    "deaved.makram@gmail.com",
+                    $"إشعار طلب جديد رقم #{order.Id}",
+                    emailBody);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Failed to send order email: {ex.Message}");
+            }
+
+        }
+
+
 
         // =========================================================
         // CALCULATE SELLING PRICE
@@ -1162,6 +1418,7 @@ $"إجمالي الطلب: {order.TotalAmount}"
 
                 PhoneNumber =
                     o.Client.PhoneNumber,
+                Note=o.Note,
 
                 Email =
                     o.Client.Email,
@@ -1259,6 +1516,7 @@ $"إجمالي الطلب: {order.TotalAmount}"
             public int? ProductVariantId { get; init; }
 
             public int Quantity { get; init; }
+            public string? Note { get; init; }
             public decimal? DisplayedUnitPrice { get; set; }
         }
     }

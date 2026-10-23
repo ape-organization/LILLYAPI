@@ -5,6 +5,7 @@
         public ClientOrderDto Client { get; set; } = null!;
 
         public List<CreateOrderItemDto> Items { get; set; } = new();
+        public string? Note { get; set; }
     }
 
 
@@ -36,6 +37,9 @@
         public int? ProductVariantId { get; set; }
 
         public int Quantity { get; set; }
+        
+       
+
         // Price displayed to the customer on checkout.
         // Used ONLY to detect price changes.
         public decimal? DisplayedUnitPrice { get; set; }

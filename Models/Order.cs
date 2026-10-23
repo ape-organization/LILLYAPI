@@ -17,6 +17,7 @@ namespace PharmacyAPI.Models
         public decimal TotalAmount { get; set; }
 
         public OrderStatus Status { get; set; } = OrderStatus.Confirmed;
+        public string? Note { get; set; }
 
         public ICollection<OrderItem> Items { get; set; }
             = new List<OrderItem>();

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using LilyAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PharmacyAPI.Models.RequestsModels;
 using PharmacyAPI.Models.Responses;
@@ -74,6 +75,14 @@ namespace PharmacyAPI.Controllers
                     nameof(GetOrder),
                     new { id = order.Id },
                     order);
+            }
+            catch (PriceChangedException ex)
+            {
+                return Conflict(new
+                {
+                    message = ex.Message,
+                    priceChanges = ex.PriceChanges
+                });
             }
             catch (KeyNotFoundException ex)
             {
@@ -265,7 +274,7 @@ namespace PharmacyAPI.Controllers
             try
             {
                 var result =
-                    await _orderService.CancelOrder(
+                    await _orderService.CompleteOrder(
                         id,
                         cancellationToken);
 

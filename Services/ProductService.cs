@@ -140,11 +140,16 @@ public sealed class ProductService : IProductService
                 DiscountPercentage =
                     p.DiscountPercentage,
 
+                // Rounded to 2 decimals, the same price
+                // OrderService charges and compares against.
+                // SQL ROUND on decimals rounds half away from zero.
                 DiscountedPrice =
                     p.DiscountPercentage > 0
-                        ? p.Price -
-                          (p.Price *
-                           p.DiscountPercentage / 100m)
+                        ? Math.Round(
+                            p.Price -
+                            (p.Price *
+                             p.DiscountPercentage / 100m),
+                            2)
                         : p.Price,
 
                 CategoryId =
@@ -679,10 +684,12 @@ public sealed class ProductService : IProductService
 
                     DiscountedPrice =
                         p.DiscountPercentage > 0
-                            ? p.Price -
-                              (p.Price *
-                               p.DiscountPercentage /
-                               100m)
+                            ? Math.Round(
+                                p.Price -
+                                (p.Price *
+                                 p.DiscountPercentage /
+                                 100m),
+                                2)
                             : p.Price,
 
                     Images =
@@ -1719,9 +1726,12 @@ public sealed class ProductService : IProductService
 
             DiscountedPrice =
                 discount > 0
-                    ? product.Price -
-                      (product.Price *
-                       discount / 100m)
+                    ? Math.Round(
+                        product.Price -
+                        (product.Price *
+                         discount / 100m),
+                        2,
+                        MidpointRounding.AwayFromZero)
                     : product.Price,
 
             CategoryId =

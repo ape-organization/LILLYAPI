@@ -6,7 +6,7 @@ namespace PharmacyAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [AllowAnonymous]
     public class ClientsController : ControllerBase
     {
         private readonly IClientService _clientService;
@@ -22,8 +22,10 @@ namespace PharmacyAPI.Controllers
         // GET: api/clients/by-phone/01012345678
         // =====================================================
 
+        // Not anonymous: it returns the customer's name,
+        // address and email for any phone number.
         [HttpGet("by-phone/{phone}")]
-        [AllowAnonymous]
+       
         public async Task<IActionResult> GetByPhone(
             string phone,
             CancellationToken cancellationToken)

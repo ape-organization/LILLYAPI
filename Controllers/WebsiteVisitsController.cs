@@ -35,8 +35,7 @@ public class WebsiteVisitsController : ControllerBase
 
     [HttpGet("monthly")]
     [Authorize]
-    public async Task<ActionResult<List<MonthlyVisitorsDto>>> GetMonthlyVisitors(
-        [FromQuery] int months = 12,
+    public async Task<ActionResult<MonthlyVisitorsDto>> GetMonthlyVisitors(
         CancellationToken cancellationToken = default)
     {
         try { 

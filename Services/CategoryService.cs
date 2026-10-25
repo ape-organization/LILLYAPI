@@ -59,57 +59,59 @@ public sealed class CategoryService : ICategoryService
         CreateCategoryRequest dto,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(dto);
+
+        var nameEn = dto.NameEn?.Trim();
+        var nameAr = dto.NameAr?.Trim();
+
+        if (string.IsNullOrWhiteSpace(nameEn))
+            throw new ArgumentException("Category English name is required.");
+
+        if (string.IsNullOrWhiteSpace(nameAr))
+            throw new ArgumentException("Category Arabic name is required.");
+
+        var exists = await _context.Categories
+            .AsNoTracking()
+            .AnyAsync(
+                c =>
+                    !c.IsDeleted &&
+                    (c.NameEn == nameEn || c.NameAr == nameAr),
+                cancellationToken);
+
+        if (exists)
+            throw new InvalidOperationException("الفئة موجودة بالفعل.");
+
+        var category = new Category
+        {
+            NameEn = nameEn,
+            NameAr = nameAr,
+            IsDeleted = false
+        };
+
+        if (dto.Image is not null)
+        {
+            category.ImageUrl = await _imageService.SaveImageAsync(
+                dto.Image,
+                "categories",
+                cancellationToken);
+        }
+
+        _context.Categories.Add(category);
+
         try
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
-            var nameEn = dto.NameEn?.Trim();
-            var nameAr = dto.NameAr?.Trim();
-
-            if (string.IsNullOrWhiteSpace(nameEn))
-                throw new ArgumentException("Category English name is required.");
-
-            if (string.IsNullOrWhiteSpace(nameAr))
-                throw new ArgumentException("Category Arabic name is required.");
-
-            var exists = await _context.Categories
-                .AsNoTracking()
-                .AnyAsync(
-                    c =>
-                        !c.IsDeleted &&
-                        (c.NameEn == nameEn || c.NameAr == nameAr),
-                    cancellationToken);
-
-            if (exists)
-                throw new InvalidOperationException("الفئة موجودة بالفعل.");
-
-            var category = new Category
-            {
-                NameEn = nameEn,
-                NameAr = nameAr,
-                IsDeleted = false
-            };
-
-            if (dto.Image is not null)
-            {
-                category.ImageUrl = await _imageService.SaveImageAsync(
-                    dto.Image,
-                    "categories",
-                    cancellationToken);
-            }
-
-            _context.Categories.Add(category);
-
-                await _context.SaveChangesAsync(cancellationToken);
-           
-
-            return category;
+            await _context.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception e)
+        catch
         {
-            Console.WriteLine($"An error occurred while creating the category: {e.Message}");
-            return null;
+            // Do not leave the uploaded image orphaned on disk.
+            if (!string.IsNullOrWhiteSpace(category.ImageUrl))
+                await _imageService.DeleteImageAsync(category.ImageUrl, "categories", CancellationToken.None);
+
+            throw;
         }
+
+        return category;
     }
 
 

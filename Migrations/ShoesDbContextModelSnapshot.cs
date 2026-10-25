@@ -542,6 +542,8 @@ namespace PharmacyAPI.Migrations
 
                     b.HasIndex("IsDeleted", "CategoryId", "Id");
 
+                    b.HasIndex("IsDeleted", "CreatedAt", "Id");
+
                     b.HasIndex("IsDeleted", "DiscountPercentage", "Id");
 
                     b.ToTable("Products");
@@ -672,6 +674,8 @@ namespace PharmacyAPI.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("VisitedAt", "VisitorId");
+
+                    b.HasIndex("VisitorId", "VisitedAt");
 
                     b.ToTable("websiteVisits");
                 });

@@ -87,60 +87,51 @@ public class SizeService : ISizeService
         SizeDto dto,
         CancellationToken cancellationToken = default)
     {
-        try
+        ArgumentNullException.ThrowIfNull(dto);
+
+        var name = NormalizeName(dto.Name);
+
+        if (string.IsNullOrWhiteSpace(name))
         {
-            ArgumentNullException.ThrowIfNull(dto);
-
-            var name = NormalizeName(dto.Name);
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                throw new ArgumentException(
-                    "Size name is required.");
-            }
-
-            // --------------------------------------------------------
-            // CHECK DUPLICATE ACTIVE SIZE
-            // --------------------------------------------------------
-
-            var exists = await _context.Sizes
-                .AnyAsync(
-                    s => s.IsActive &&
-                         s.Name == name,
-                    cancellationToken);
-
-            if (exists)
-            {
-                throw new InvalidOperationException(
-                    "A size with this name already exists.");
-            }
-
-            // --------------------------------------------------------
-            // CREATE
-            // --------------------------------------------------------
-
-            var size = new Size
-            {
-                Name = name,
-                IsActive = true
-            };
-
-            _context.Sizes.Add(size);
-
-            await _context.SaveChangesAsync(cancellationToken);
-
-            return new SizeDto
-            {
-                Id = size.Id,
-                Name = size.Name
-            };
+            throw new ArgumentException(
+                "Size name is required.");
         }
-        catch(Exception e)
+
+        // --------------------------------------------------------
+        // CHECK DUPLICATE ACTIVE SIZE
+        // --------------------------------------------------------
+
+        var exists = await _context.Sizes
+            .AnyAsync(
+                s => s.IsActive &&
+                     s.Name == name,
+                cancellationToken);
+
+        if (exists)
         {
-                       // Log the exception (you can use a logging framework)
-            Console.WriteLine($"Error creating size: {e.Message}");
-            return null;
+            throw new InvalidOperationException(
+                "A size with this name already exists.");
         }
+
+        // --------------------------------------------------------
+        // CREATE
+        // --------------------------------------------------------
+
+        var size = new Size
+        {
+            Name = name,
+            IsActive = true
+        };
+
+        _context.Sizes.Add(size);
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new SizeDto
+        {
+            Id = size.Id,
+            Name = size.Name
+        };
     }
 
     // ============================================================

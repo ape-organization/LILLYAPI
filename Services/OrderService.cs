@@ -1,5 +1,6 @@
 ﻿
 using LilyAPI.Services;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using PharmacyAPI.Data;
 using PharmacyAPI.Models;
@@ -16,7 +17,7 @@ namespace PharmacyAPI.Services
          Task<bool> CompleteOrder(
           int id,
           CancellationToken cancellationToken = default);
-        Task<Order> CreateOrder(
+        Task<OrderDto> CreateOrder(
             CreateOrderDto dto,
             CancellationToken cancellationToken = default);
 
@@ -52,21 +53,35 @@ namespace PharmacyAPI.Services
 
     public sealed class OrderService : IOrderService
     {
-        private readonly ShoesDbContext _context;
-        private readonly  IEmailService _emailService;
+        private const string DefaultAdminEmail = "deaved.makram@gmail.com";
+       // private const string DefaultAdminEmail = "ereny.karam.noshy@gmail.com";
+        // SQL Server unique index violations.
+        private const int SqlUniqueIndexViolation = 2601;
+        private const int SqlUniqueConstraintViolation = 2627;
 
-        public OrderService(ShoesDbContext context, IEmailService emailService)
+        private readonly ShoesDbContext _context;
+        private readonly IEmailQueue _emailQueue;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<OrderService> _logger;
+
+        public OrderService(
+            ShoesDbContext context,
+            IEmailQueue emailQueue,
+            IConfiguration configuration,
+            ILogger<OrderService> logger)
         {
-                _context = context;
-                _emailService = emailService;
-            }
+            _context = context;
+            _emailQueue = emailQueue;
+            _configuration = configuration;
+            _logger = logger;
+        }
 
 
         // =========================================================
         // CREATE ORDER
         // =========================================================
 
-        public async Task<Order> CreateOrder(
+        public async Task<OrderDto> CreateOrder(
       CreateOrderDto dto,
       CancellationToken cancellationToken = default)
         {
@@ -307,7 +322,12 @@ namespace PharmacyAPI.Services
                 // Compare prices
                 // -------------------------------------------------
 
-                if (displayedPrice.Value != currentPrice)
+                // The displayed price is compared at 2 decimals,
+                // the same precision used by CalculateSellingPrice.
+                if (Math.Round(
+                        displayedPrice.Value,
+                        2,
+                        MidpointRounding.AwayFromZero) != currentPrice)
                 {
                     priceChanges.Add(
                         new PriceChangeItemDto
@@ -331,9 +351,9 @@ namespace PharmacyAPI.Services
 
             if (priceChanges.Count > 0)
             {
-                throw new KeyNotFoundException(
-                    "تغير سعر بعض المنتجات. يرجى مراجعة الطلب قبل إتمام الشراء."
-                    );
+                throw new PriceChangedException(
+                    "تغير سعر بعض المنتجات. يرجى مراجعة الطلب قبل إتمام الشراء.",
+                    priceChanges);
             }
 
 
@@ -366,6 +386,9 @@ namespace PharmacyAPI.Services
             // CREATE / UPDATE CLIENT
             // =====================================================
 
+            var isNewClient =
+                client == null;
+
             if (client == null)
             {
                 client = new Client
@@ -391,17 +414,12 @@ namespace PharmacyAPI.Services
             }
             else
             {
-                client.Name =
-                    clientName;
-
-                client.Address =
-                    address;
-
-                client.Email =
-                    email;
-
-                client.UpdatedAt =
-                    now;
+                UpdateClientDetails(
+                    client,
+                    clientName,
+                    address,
+                    email,
+                    now);
             }
 
 
@@ -612,39 +630,140 @@ namespace PharmacyAPI.Services
             // SAVE EVERYTHING
             // =====================================================
 
-            await _context.SaveChangesAsync(
-                cancellationToken);
-            //send email to admin
-            Email(client, products, order);
-            //try
-            //{
+            try
+            {
+                await _context.SaveChangesAsync(
+                    cancellationToken);
+            }
+            catch (DbUpdateException ex) when (
+                isNewClient &&
+                IsUniqueViolation(ex))
+            {
+                // Another request created a client with the same
+                // phone number at the same time. Attach the order
+                // to that client and save again.
+                _context.Entry(client).State =
+                    EntityState.Detached;
 
-            //                await _emailService.SendEmailAsync(
-            //    "deaved.makram@gmail.com",
-            //    "استلام طلب جديد",
+                client =
+                    await _context.Clients
+                        .FirstOrDefaultAsync(
+                            c => c.PhoneNumber == phoneNumber,
+                            cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "تعذر حفظ بيانات العميل.", ex);
 
-            //    $" {client.Name} :طلب جديد باسم" +
-            //    $"<br>"+
-            //$"رقم الطلب: {order.Id}<br>" +
-            //$"إجمالي الطلب: {order.TotalAmount}"
-            //);
-            //            }
-            //            catch (Exception ex)
-            //            {
-            //                // Log the exception or handle it as needed
-            //                Console.WriteLine($"Failed to send email: {ex.Message}");
-            //            }
+                UpdateClientDetails(
+                    client,
+                    clientName,
+                    address,
+                    email,
+                    now);
 
-            return order;
+                order.Client =
+                    client;
+
+                await _context.SaveChangesAsync(
+                    cancellationToken);
+            }
+
+
+            // =====================================================
+            // QUEUE ADMIN EMAIL
+            // =====================================================
+            //
+            // Sent by a background service, so the checkout
+            // response never waits for the mail API and a mail
+            // failure can never fail or crash the order.
+            //
+            // =====================================================
+
+            try
+            {
+                var adminEmail =
+                    _configuration["OrderNotifications:AdminEmail"];
+
+                var queued =
+                    _emailQueue.TryEnqueue(
+                        new EmailMessage(
+                            string.IsNullOrWhiteSpace(adminEmail)
+                                ? DefaultAdminEmail
+                                : adminEmail,
+                            $"إشعار طلب جديد رقم #{order.Id}",
+                            BuildOrderEmailBody(client, products, order)));
+
+                if (!queued)
+                {
+                    _logger.LogWarning(
+                        "Email queue is full. Order {OrderId} email was not queued.",
+                        order.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to queue email for order {OrderId}.",
+                    order.Id);
+            }
+
+            return await GetOrder(
+                       order.Id,
+                       cancellationToken)
+                   ?? throw new InvalidOperationException(
+                       "تعذر تحميل الطلب بعد حفظه.");
         }
 
 
-        public async void Email(Client client,Dictionary<int, Product> products, Order order)
-        {
+        // =========================================================
+        // CLIENT HELPERS
+        // =========================================================
 
-            // SEND ORDER EMAIL
-            try
+        private static void UpdateClientDetails(
+            Client client,
+            string clientName,
+            string address,
+            string? email,
+            DateTime now)
+        {
+            client.Name =
+                clientName;
+
+            client.Address =
+                address;
+
+            // Keep the saved email when the customer
+            // leaves the field empty.
+            if (email != null)
             {
+                client.Email =
+                    email;
+            }
+
+            client.UpdatedAt =
+                now;
+        }
+
+
+        private static bool IsUniqueViolation(
+            DbUpdateException ex)
+        {
+            return ex.InnerException is SqlException
+            {
+                Number: SqlUniqueIndexViolation or SqlUniqueConstraintViolation
+            };
+        }
+
+
+        // =========================================================
+        // ORDER EMAIL BODY
+        // =========================================================
+
+        private static string BuildOrderEmailBody(
+            Client client,
+            Dictionary<int, Product> products,
+            Order order)
+        {
                 var itemsHtml = new StringBuilder();
 
                 foreach (var item in order.Items)
@@ -871,17 +990,7 @@ namespace PharmacyAPI.Services
 </body>
 </html>";
 
-                await _emailService.SendEmailAsync(
-                    "deaved.makram@gmail.com",
-                    $"إشعار طلب جديد رقم #{order.Id}",
-                    emailBody);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(
-                    $"Failed to send order email: {ex.Message}");
-            }
-
+                return emailBody;
         }
 
 
@@ -1259,8 +1368,8 @@ namespace PharmacyAPI.Services
                 startDate.AddMonths(1);
 
 
-            var stats =
-                await _context.Orders
+            return await GetStats(
+                _context.Orders
                     .AsNoTracking()
                     .Where(o =>
                         o.Status !=
@@ -1268,57 +1377,8 @@ namespace PharmacyAPI.Services
                         o.OrderDate >=
                             startDate &&
                         o.OrderDate <
-                            endDate)
-                    .GroupBy(_ => 1)
-                    .Select(g => new
-                    {
-                        Orders =
-                            g.Count(),
-
-                        Sales =
-                            g.Sum(o =>
-                                o.TotalAmount),
-
-                        Gain =
-                            g.SelectMany(o =>
-                                o.Items)
-                                .Sum(i =>
-                                    (i.UnitPrice -
-                                     i.ActualPrice) *
-                                    i.Quantity)
-                    })
-                    .FirstOrDefaultAsync(
-                        cancellationToken);
-
-
-            if (stats == null)
-            {
-                return new DashboardStatsDto
-                {
-                    Orders = 0,
-                    Sales = 0,
-                    Gain = 0
-                };
-            }
-
-
-            return new DashboardStatsDto
-            {
-                Orders =
-                    stats.Orders,
-
-                Sales =
-                    Math.Round(
-                        stats.Sales,
-                        2,
-                        MidpointRounding.AwayFromZero),
-
-                Gain =
-                    Math.Round(
-                        stats.Gain,
-                        2,
-                        MidpointRounding.AwayFromZero)
-            };
+                            endDate),
+                cancellationToken);
         }
 
 
@@ -1329,35 +1389,34 @@ namespace PharmacyAPI.Services
         public async Task<DashboardStatsDto> GetTotalStats(
             CancellationToken cancellationToken = default)
         {
-            var stats =
-                await _context.Orders
+            return await GetStats(
+                _context.Orders
                     .AsNoTracking()
                     .Where(o =>
                         o.Status !=
-                            OrderStatus.Cancelled)
-                    .GroupBy(_ => 1)
-                    .Select(g => new
-                    {
-                        Orders =
-                            g.Count(),
-
-                        Sales =
-                            g.Sum(o =>
-                                o.TotalAmount),
-
-                        Gain =
-                            g.SelectMany(o =>
-                                o.Items)
-                                .Sum(i =>
-                                    (i.UnitPrice -
-                                     i.ActualPrice) *
-                                    i.Quantity)
-                    })
-                    .FirstOrDefaultAsync(
-                        cancellationToken);
+                            OrderStatus.Cancelled),
+                cancellationToken);
+        }
 
 
-            if (stats == null)
+        // =========================================================
+        // DASHBOARD AGGREGATES
+        // =========================================================
+        //
+        // Plain COUNT / SUM queries. Each one translates to a
+        // single SQL aggregate, with no grouping or SelectMany.
+        //
+        // =========================================================
+
+        private static async Task<DashboardStatsDto> GetStats(
+            IQueryable<Order> orders,
+            CancellationToken cancellationToken)
+        {
+            var count =
+                await orders.CountAsync(
+                    cancellationToken);
+
+            if (count == 0)
             {
                 return new DashboardStatsDto
                 {
@@ -1367,21 +1426,35 @@ namespace PharmacyAPI.Services
                 };
             }
 
+            var sales =
+                await orders.SumAsync(
+                    o => o.TotalAmount,
+                    cancellationToken);
+
+            var gain =
+                await orders
+                    .SelectMany(o => o.Items)
+                    .SumAsync(
+                        i =>
+                            (i.UnitPrice -
+                             i.ActualPrice) *
+                            i.Quantity,
+                        cancellationToken);
 
             return new DashboardStatsDto
             {
                 Orders =
-                    stats.Orders,
+                    count,
 
                 Sales =
                     Math.Round(
-                        stats.Sales,
+                        sales,
                         2,
                         MidpointRounding.AwayFromZero),
 
                 Gain =
                     Math.Round(
-                        stats.Gain,
+                        gain,
                         2,
                         MidpointRounding.AwayFromZero)
             };
@@ -1516,7 +1589,7 @@ namespace PharmacyAPI.Services
             public int? ProductVariantId { get; init; }
 
             public int Quantity { get; init; }
-            public string? Note { get; init; }
+
             public decimal? DisplayedUnitPrice { get; set; }
         }
     }

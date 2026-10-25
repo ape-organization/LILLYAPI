@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -11,7 +12,6 @@ using PharmacyAPI.Services.Interfaces;
 using Prometheus;
 using System.Text;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +57,19 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<ISizeService, SizeService>();
 builder.Services.AddScoped<IHeelSizeService, HeelSizeService>();
 builder.Services.AddHttpClient<IEmailService, EmailService>();
+
+// Background email queue (one instance for the queue and the hosted service)
+builder.Services.AddSingleton<EmailQueue>();
+builder.Services.AddSingleton<IEmailQueue>(sp => sp.GetRequiredService<EmailQueue>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<EmailQueue>());
+
+// Response compression (JSON)
+builder.Services.AddResponseCompression(opt =>
+{
+    opt.EnableForHttps = true;
+    opt.Providers.Add<BrotliCompressionProvider>();
+    opt.Providers.Add<GzipCompressionProvider>();
+});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -104,21 +117,14 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
+    // Only failures are logged (at Debug), never every successful request.
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine("AUTH FAILED: " + context.Exception.Message);
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine("TOKEN VALIDATED SUCCESSFULLY");
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            Console.WriteLine("ON CHALLENGE ERROR: " + context.Error);
+            context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>()
+                .LogDebug(context.Exception, "JWT authentication failed.");
             return Task.CompletedTask;
         }
     };
@@ -155,18 +161,40 @@ var app = builder.Build();
 //    }
 //}
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseResponseCompression();
 
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
-app.UseStaticFiles(new StaticFileOptions
+// Uploaded images. File names are random GUIDs and never reused,
+// so browsers and CDNs may cache them for a year.
+var uploadsRoot = builder.Configuration["FileStorage:StaticRoot"] ?? "/var/www/uploads";
+
+if (Directory.Exists(uploadsRoot))
 {
-    FileProvider = new PhysicalFileProvider("/var/www/uploads"),
-    RequestPath = "/uploads"
-});
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uploadsRoot),
+        RequestPath = "/uploads",
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        }
+    });
+}
+else
+{
+    app.Logger.LogWarning(
+        "Uploads directory {UploadsRoot} does not exist; /uploads will not be served.",
+        uploadsRoot);
+}
 
 app.UseRouting();
 

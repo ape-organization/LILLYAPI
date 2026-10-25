@@ -71,11 +71,9 @@ namespace PharmacyAPI.Controllers
 
             // 🔹 Generate refresh token
             var refreshToken = GenerateRefreshToken();
-            int.TryParse(_configuration["JWTSettings:RefreshTokenValidityInDays"],
-                out int refreshTokenValidityInDays);
 
             user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(refreshTokenValidityInDays);
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(GetRefreshTokenValidityInDays());
 
             await userManager.UpdateAsync(user);
 
@@ -189,20 +187,12 @@ namespace PharmacyAPI.Controllers
                     GenerateRefreshToken();
 
 
-                int.TryParse(
-                    _configuration[
-                        "JWTSettings:RefreshTokenValidityInDays"
-                    ],
-                    out int refreshTokenValidityInDays
-                );
-
-
                 user.RefreshToken =
                     newRefreshToken;
 
                 user.RefreshTokenExpiryTime =
                     DateTime.UtcNow.AddDays(
-                        refreshTokenValidityInDays
+                        GetRefreshTokenValidityInDays()
                     );
 
 
@@ -228,14 +218,28 @@ namespace PharmacyAPI.Controllers
 
 
         [HttpGet]
-        [AllowAnonymous]
-
-        //[Authorize]
-        //need edit to get user role too
-        public async Task<ActionResult<IEnumerable<ApplicationUser>>> GetUsers()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsers()
         {
-            try { 
-            return await _context.Users.Where(user => user.IsActive == true).ToListAsync();
+            try {
+            // Projected: never return PasswordHash, SecurityStamp
+            // or RefreshToken to the client.
+            var users = await _context.Users
+                .AsNoTracking()
+                .Where(user => user.IsActive)
+                .Select(user => new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    user.UserName,
+                    user.PhoneNumber,
+                    user.position,
+                    user.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(users);
             }
             catch (Exception e)
             {
@@ -264,8 +268,7 @@ namespace PharmacyAPI.Controllers
         }
 
         [HttpPost("addUser")]
-
-        // [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApplicationUser>> CreateUser([FromBody]UserDto UserDto)
         {
 
@@ -333,7 +336,7 @@ namespace PharmacyAPI.Controllers
         }
       
         [HttpPut("editUser")]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(UpdateUserDto updateUserDto)
         {
             try { 
@@ -358,7 +361,7 @@ namespace PharmacyAPI.Controllers
         }
 
         [HttpPost()]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(UpdateUserDto data)
         {
             try { 
@@ -372,6 +375,17 @@ namespace PharmacyAPI.Controllers
             {
                 return BadRequest(e.Message);
             }
+        }
+
+        // Falls back to 1 day when the setting is missing or invalid,
+        // instead of 0 days (a refresh token that is already expired).
+        private int GetRefreshTokenValidityInDays()
+        {
+            return int.TryParse(
+                       _configuration["JWTSettings:RefreshTokenValidityInDays"],
+                       out var days) && days > 0
+                ? days
+                : 1;
         }
 
         public static string GenerateRefreshToken()

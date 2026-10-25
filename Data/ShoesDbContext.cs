@@ -152,7 +152,15 @@ namespace PharmacyAPI.Data
                 modelBuilder.Entity<Product>()
                     .HasIndex(p => new { p.CategoryId, p.IsDeleted, p.CreatedAt });
 
-               
+                // Main catalog sort:
+                // WHERE !IsDeleted ORDER BY CreatedAt DESC, Id DESC
+                entity.HasIndex(p => new
+                {
+                    p.IsDeleted,
+                    p.CreatedAt,
+                    p.Id
+                });
+
 
                 // Product name search / lookup.
                 entity.HasIndex(p => p.NameEn);
@@ -488,6 +496,18 @@ namespace PharmacyAPI.Data
                 {
                     x.VisitedAt,
                     x.VisitorId
+                });
+
+                // ----------------------------------------------------
+                // RecordVisit: "has this visitor been here today?"
+                //
+                // Visitor first, date second.
+                // ----------------------------------------------------
+
+                entity.HasIndex(x => new
+                {
+                    x.VisitorId,
+                    x.VisitedAt
                 });
             });
 

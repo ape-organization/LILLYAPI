@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using PharmacyAPI.Data;
 using PharmacyAPI.Models;
 using PharmacyAPI.Models.Authentication;
 
@@ -10,15 +9,16 @@ namespace PharmacyAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public class RolesController : ControllerBase
     {
-        private readonly ShoesDbContext _context;
+        // Seeded roles the application depends on.
+        private static readonly HashSet<string> ProtectedRoles =
+            new(StringComparer.OrdinalIgnoreCase) { "Admin", "User" };
+
         private readonly RoleManager<ApplicationRole> roleManager;
-        public RolesController(ShoesDbContext context,
-            RoleManager<ApplicationRole> _roleManager)
+        public RolesController(RoleManager<ApplicationRole> _roleManager)
         {
-            _context = context;
             roleManager = _roleManager;
         }
 
@@ -32,17 +32,20 @@ namespace PharmacyAPI.Controllers
             return Ok(roles);
         }
 
-       
-
-      
-
+        // Role keys are strings (e.g. "role-admin"), not ints.
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRole(int id)
+        public async Task<IActionResult> DeleteRole(string id)
         {
-            var role = await _context.Roles.FindAsync(id);
+            var role = await roleManager.FindByIdAsync(id);
             if (role == null) return NotFound();
-            _context.Roles.Remove(role);
-            await _context.SaveChangesAsync();
+
+            if (role.Name is not null && ProtectedRoles.Contains(role.Name))
+                return BadRequest(new { message = "This role cannot be deleted." });
+
+            var result = await roleManager.DeleteAsync(role);
+            if (!result.Succeeded)
+                return BadRequest(new { message = string.Join(" ", result.Errors.Select(e => e.Description)) });
+
             return NoContent();
         }
     }
